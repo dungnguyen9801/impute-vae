@@ -3,13 +3,17 @@ import pandas as pd
 import numpy as np
 from tensorflow import keras
 import matplotlib.pyplot as plt
-tf.keras.backend.set_floatx('float32')
 
 class elbo_calculator():
-    def get_elbo(vae_model, data):
+    def __init__(self, vae_model, data):
+        self.model = vae_model
+        self.data = data
         
-def get_elbo(x, z_generators, func_log_p_z_theta, func_log_q_z_x, func_log_p_x_z, options):
-    zs = model.get_z_gaussian_generator()(x, options)
-    return -(tf.math.reduce_sum(model.get_func_log_p_z_theta()(zs)) 
-            + tf.math.reduce_sum(model.get_func_log_p_x_z()(zs, x))
-            - tf.math.reduce_sum(model.get_func_log_q_z_x()(zs, x)))/len(zs)
+    # options = { 'length' : L, 'seed': seed }
+    def get_elbo(self, options):
+        model = self.model
+        x = self.data
+        zs = model.get_z_generator()(x, options)
+        return -(tf.math.reduce_sum(model.get_func_log_p_z()(zs)) 
+                + tf.math.reduce_sum(model.get_func_log_p_x_z()(zs, x))
+                - tf.math.reduce_sum(model.get_func_log_q_z_x()(zs, x)))/len(zs)

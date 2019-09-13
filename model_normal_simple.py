@@ -36,7 +36,7 @@ class normal_model():
         
         return encoder, decoder
 
-    def get_z_gaussian_generator(self):
+    def get_z_generator(self):
         def func(x, options):
             mu_z, sigma_z = self.encoder(x)
             if not options:
@@ -51,20 +51,27 @@ class normal_model():
             return eps * sigma_z + mu_z
         return func
 
-    def get_func_log_p_z_gaussian(self):
+    def get_func_log_p_z(self):
         def func(zs):
             return -zs**2/2 - 0.5 * tf.math.log(2*np.pi)
         return func
 
-    def get_func_log_q_z_x_gaussian(self):
+    def get_trainable_variables(self):
+        return [self.encoder.trainable_variables, self.decoder.trainable_variables]
+
+    def get_func_log_q_z_x(self):
         def func(zs, x):
             mu_z, sigma_z = self.encoder(x)
             return utils.get_gaussian_densities(zs, mu_z, sigma_z)
         return func
 
-    def get_func_log_p_x_z_gaussian(self.decoder):
+    def get_func_log_p_x_z(self.decoder):
         def func(zs, x):
             mu_x, sigma_x = decoder(tf.reshape(zs,(-1, 1)))
             mu_x = tf.reshape(mu_x, (-1, *x.shape))
-            return get_gaussian_densities(x, mu_x, sigma_x)
+            return utils.get_gaussian_densities(x, mu_x, sigma_x)
         return func
+
+    def get_trainable_variables(self):
+        return [self.encoder.trainable_variables, self.decoder.trainable_variables]
+
