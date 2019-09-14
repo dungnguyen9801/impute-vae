@@ -4,7 +4,7 @@ import numpy as np
 from tensorflow import keras
 import matplotlib.pyplot as plt
 import copy
-import elbo_calculator
+import model_normal_simple as mns
 import model_vae_bayes as mvb
 import elbo_calculator as ec
 
@@ -27,8 +27,8 @@ def test_elbo1():
 def test_elbo2():
     epochs=10000
     batch_size=32
-    x = np.random.normal(0,2,120))
-    model = mvb.model_normal_simple()
+    x = np.random.normal(0,2,120)
+    model = mns.model_normal_simple()
     elbo_cal = ec.elbo_calculator(model, x)
     optimizer = tf.keras.optimizers.Adamax()
     options = {'length': 100, 'seed': 1}
@@ -42,4 +42,4 @@ def test_elbo2():
 ### main
 ###
 
-test_elbo1()
+test_elbo2()

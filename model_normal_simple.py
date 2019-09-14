@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import copy
 import utils
 
-class normal_model():
+class model_normal_simple():
     def __init__(self):
         self.encoder, self.decoder = self.get_model_gaussian_simple()
 
@@ -23,8 +23,8 @@ class normal_model():
             )
         )
 
-        mu_encode = keras.layers.Dense(1, activation='linear')
-        sigma_encode = tf.Variable(1.0)    
+        mu_decode = keras.layers.Dense(1, activation='linear')
+        sigma_decode = tf.Variable(1.0)    
         inputs_decode = keras.layers.Input(shape=(1,))
         decoder=keras.models.Model(
             inputs=inputs_decode,
@@ -65,9 +65,9 @@ class normal_model():
             return utils.get_gaussian_densities(zs, mu_z, sigma_z)
         return func
 
-    def get_func_log_p_x_z(self.decoder):
+    def get_func_log_p_x_z(self):
         def func(zs, x):
-            mu_x, sigma_x = decoder(tf.reshape(zs,(-1, 1)))
+            mu_x, sigma_x = self.decoder(tf.reshape(zs,(-1, 1)))
             mu_x = tf.reshape(mu_x, (-1, *x.shape))
             return utils.get_gaussian_densities(x, mu_x, sigma_x)
         return func
