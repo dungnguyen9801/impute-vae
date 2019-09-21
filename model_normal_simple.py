@@ -6,31 +6,58 @@ import matplotlib.pyplot as plt
 import copy
 import utils
 
+
+class model_normal_simple_layer(keras.layers.Layer):
+
+    def __init__(self, **kwargs):
+        super(model_normal_simple_layer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        # Create a trainable weight variable for this layer.
+        self.a = self.add_weight(
+            name='a',
+            shape=None,
+            initializer='uniform',
+            dtype='float32',
+            trainable=True)
+        self.b = self.add_weight(
+            name='b',
+            shape=None,
+            initializer='uniform',
+            dtype='float32',
+            trainable=True)
+        self.sigma = self.add_weight(
+            name='sigma',
+            shape=None,
+            initializer='uniform',
+            dtype='float32',
+            trainable=True)
+        super(model_normal_simple_layer, self).build(input_shape)  # Be sure to call this at the end
+
+    def call(self, x):
+        mu=x*self.a + self.b
+        return mu, x * 0 + self.sigma
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 class model_normal_simple():
     def __init__(self):
         self.encoder, self.decoder = self.get_model_gaussian_simple()
 
     def get_model_gaussian_simple(self):
-        mu_encode = keras.layers.Dense(1, activation='linear')
-        sigma_encode = keras.layers.Dense(1, activation='linear')
         inputs_encode = keras.layers.Input(shape=(1,))
+        layer_encode = model_normal_simple_layer()
         encoder=keras.models.Model(
             inputs=inputs_encode,
-            outputs=(
-                mu_encode(inputs_encode),
-                sigma_encode(inputs_encode)
-            )
+            outputs=layer_encode(inputs_encode)
         )
 
-        mu_decode = keras.layers.Dense(1, activation='linear')
-        sigma_decode = keras.layers.Dense(1, activation='linear')
         inputs_decode = keras.layers.Input(shape=(1,))
+        layer_decode = model_normal_simple_layer()
         decoder=keras.models.Model(
             inputs=inputs_decode,
-            outputs=(
-                mu_decode(inputs_decode),
-                sigma_decode(inputs_decode)
-            )
+            outputs=layer_decode(inputs_decode)
         )
         
         return encoder, decoder

@@ -16,4 +16,4 @@ class elbo_calculator():
         zs = model.get_z_generator()(x, options)
         return -(tf.math.reduce_sum(model.get_func_log_p_z()(zs)) 
                 + tf.math.reduce_sum(model.get_func_log_p_x_z()(zs, x))
-                - tf.math.reduce_sum(model.get_func_log_q_z_x()(zs, x)))/len(zs)
+                - tf.math.reduce_sum(model.get_func_log_q_z_x()(zs, x)))/len(zs)/len(x)
