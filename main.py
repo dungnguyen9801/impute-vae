@@ -27,7 +27,7 @@ def test_elbo1():
 def test_elbo2():
     epochs=10000
     batch_size=32
-    x = np.random.normal(0,2,120)
+    x = np.random.normal(0,2, (120,1))
     model = mns.model_normal_simple()
     elbo_cal = ec.elbo_calculator(model, x)
     optimizer = tf.keras.optimizers.Adamax()
@@ -42,4 +42,4 @@ def test_elbo2():
 ### main
 ###
 
-test_elbo2()
+test_elbo1()

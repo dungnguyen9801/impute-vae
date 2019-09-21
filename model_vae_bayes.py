@@ -69,7 +69,7 @@ class model_vae_bayes():
 
     def get_func_log_p_x_z(self):
         def func(zs, x):
-            mu_x, log_sigma_x = self.decoder(tf.reshape(zs,(-1, zs.shape[2])))
+            mu_x, log_sigma_x = self.decoder(tf.reshape(zs,(-1, zs.shape[-1])))
             sigma_x = tf.math.exp(log_sigma_x)
             mu_x = tf.reshape(mu_x, (-1, *x.shape))
             sigma_x = tf.reshape(sigma_x,(-1, *x.shape))
