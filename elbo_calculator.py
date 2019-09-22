@@ -8,7 +8,9 @@ class elbo_calculator():
     def __init__(self, vae_model, data):
         self.model = vae_model
         self.data = data
-        
+
+    def __init__(self):
+        pass
     # options = { 'length' : L, 'seed': seed }
     def get_elbo(self, options):
         model = self.model
@@ -17,3 +19,11 @@ class elbo_calculator():
         return -(tf.math.reduce_sum(model.get_func_log_p_z()(zs)) 
                 + tf.math.reduce_sum(model.get_func_log_p_x_z()(zs, x))
                 - tf.math.reduce_sum(model.get_func_log_q_z_x()(zs, x)))/len(zs)/len(x)
+
+    def get_loss_func(self):
+        def func(model, x,y=None,options=None):
+            zs = model.get_z_generator()(x, options)
+            return -(tf.math.reduce_sum(model.get_func_log_p_z()(zs)) 
+                + tf.math.reduce_sum(model.get_func_log_p_x_z()(zs, x))
+                - tf.math.reduce_sum(model.get_func_log_q_z_x()(zs, x)))/len(zs)/len(x)
+        return func
