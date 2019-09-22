@@ -14,22 +14,23 @@ class model_normal_simple_layer(keras.layers.Layer):
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
+        simple_init = keras.initializers.Constant(value=0.5)
         self.a = self.add_weight(
             name='a',
             shape=None,
-            initializer='uniform',
+            initializer=simple_init,
             dtype='float32',
             trainable=True)
         self.b = self.add_weight(
             name='b',
             shape=None,
-            initializer='uniform',
+            initializer=simple_init,
             dtype='float32',
             trainable=True)
         self.sigma = self.add_weight(
             name='sigma',
             shape=None,
-            initializer='uniform',
+            initializer=simple_init,
             dtype='float32',
             trainable=True)
         super(model_normal_simple_layer, self).build(input_shape)  # Be sure to call this at the end
