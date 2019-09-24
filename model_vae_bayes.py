@@ -26,7 +26,7 @@ class model_vae_bayes():
         
         dim_x = np.prod(input_shape)    
         dense_decode = keras.layers.Dense(dim_x_hidden, activation='tanh')
-        mu_decode = keras.layers.Dense(dim_x, activation='linear')
+        mu_decode = keras.layers.Dense(dim_x, activation='sigmoid')
         log_sigma_decode = keras.layers.Dense(dim_x, activation='linear')
         inputs_decode = keras.layers.Input(shape=(dim_z,))
         decoder=keras.models.Model(

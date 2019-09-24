@@ -82,8 +82,25 @@ def test_elbo1():
         if epoch % 1000 == 0:
             print('epoch %s: loss = %s' %(epoch, loss().numpy()))
 
+def test_elbo4():
+    epochs=100000
+    batch_size=32
+    import os
+    from scipy.io import loadmat
+    img_rows, img_cols = 28, 20
+    ff = loadmat('../data/freyface/frey_rawface.mat', squeeze_me=True, struct_as_record=False)
+    x = ff["ff"].T.reshape((-1, img_rows, img_cols))/255
+    model = mvb.model_vae_bayes(dim_z_hidden=200, dim_z=10, input_shape=x.shape[1:], dim_x_hidden=200)
+    optimizer = tf.keras.optimizers.Adamax()
+    options = {'length': 100, 'seed': 0}
+    for epoch in range(epochs):
+        loss_func = ec.elbo_calculator().get_loss_func()
+        loss = train.train_one_epoch(model, x, optimizer, loss_func, y=None, batch_size=batch_size, options=options)
+        if (epoch+1) % 1 == 0:
+            print('epoch %s: loss = %s' %(epoch+1, -loss.numpy()))
+
 ###
 ### main
 ###
 
-test_elbo1b()
+test_elbo4()
