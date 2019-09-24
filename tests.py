@@ -25,13 +25,12 @@ def load_normal(shape=None, options=None):
     if shape is None:
         shape=(1000,1)
     return np.random.normal(0, options.get('scale', 1), shape)
-    #return np.random.normal(0, 1, shape) + np.random.normal(0, 1, shape)   
 
 test_cases = \
 {
     'frey1':
     {
-        'epochs': 10000,
+        'epochs': 5000,
         'batch_size': 32,
         'input_shape': None,
         'model_dims': (200,10,200),
@@ -42,7 +41,8 @@ test_cases = \
             'length': 100,
             'seed': 0
         },
-        'use_sgd':True
+        'use_sgd':True,
+        'report_frequency':10
     },
     'normal1':
     {
@@ -87,4 +87,6 @@ def run_test(test_case_name):
         loss = train.train_one_epoch(model, x, optimizer, loss_func, y=None, batch_size=batch_size, options=options)
         if ((epoch + 1) % report_frequency == 0):
             print('epoch %s: loss = %s' %(epoch+1, -loss.numpy()))
+            model.encoder.save('%s_encoder.h5' % test_case_name)
+            model.decoder.save('%s_decoder.h5' % test_case_name)
     return model
