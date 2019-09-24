@@ -4,6 +4,7 @@ import numpy as np
 from tensorflow import keras
 import matplotlib.pyplot as plt
 import utils
+import encoders
 
 class model_vae_bayes():
     def __init__(self, dim_z_hidden, dim_z, input_shape, dim_x_hidden):
@@ -11,32 +12,8 @@ class model_vae_bayes():
             dim_z_hidden, dim_z, input_shape, dim_x_hidden)
             
     def get_model_vae_gaussian(self, dim_z_hidden, dim_z, input_shape, dim_x_hidden):
-        flatten_encode = keras.layers.Flatten()
-        dense_encode = keras.layers.Dense(dim_z_hidden, activation='tanh')
-        mu_encode = keras.layers.Dense(dim_z, activation='linear')
-        log_sigma_encode = keras.layers.Dense(dim_z, activation='linear')
-        inputs_encode = keras.layers.Input(shape=(*input_shape,))
-        encoder=keras.models.Model(
-            inputs=inputs_encode,
-            outputs=(
-                mu_encode(dense_encode(flatten_encode(inputs_encode))),
-                log_sigma_encode(dense_encode(flatten_encode(inputs_encode)))
-            )
-        )
-        
-        dim_x = np.prod(input_shape)    
-        dense_decode = keras.layers.Dense(dim_x_hidden, activation='tanh')
-        mu_decode = keras.layers.Dense(dim_x, activation='sigmoid')
-        log_sigma_decode = keras.layers.Dense(dim_x, activation='linear')
-        inputs_decode = keras.layers.Input(shape=(dim_z,))
-        decoder=keras.models.Model(
-            inputs=inputs_decode,
-            outputs=(
-                mu_decode(dense_decode((inputs_decode))),
-                log_sigma_decode(dense_decode((inputs_decode)))
-            )
-        )
-        
+        encoder = encoders.get_bayes_encoder(input_shape, dim_z_hidden, dim_z)
+        decoder = encoders.get_bayes_encoder((dim_z,), dim_x_hidden, np.prod(input_shape), activation_mu='sigmoid')
         return encoder, decoder
 
     def get_z_generator(self):

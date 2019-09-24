@@ -5,62 +5,15 @@ from tensorflow import keras
 import matplotlib.pyplot as plt
 import copy
 import utils
-
-
-class model_normal_simple_layer(keras.layers.Layer):
-
-    def __init__(self, **kwargs):
-        super(model_normal_simple_layer, self).__init__(**kwargs)
-
-    def build(self, input_shape):
-        # Create a trainable weight variable for this layer.
-        simple_init = keras.initializers.Constant(value=0.5)
-        self.a = self.add_weight(
-            name='a',
-            shape=None,
-            initializer=simple_init,
-            dtype='float32',
-            trainable=True)
-        self.b = self.add_weight(
-            name='b',
-            shape=None,
-            initializer=simple_init,
-            dtype='float32',
-            trainable=True)
-        self.sigma = self.add_weight(
-            name='sigma',
-            shape=None,
-            initializer=simple_init,
-            dtype='float32',
-            trainable=True)
-        super(model_normal_simple_layer, self).build(input_shape)  # Be sure to call this at the end
-
-    def call(self, x):
-        mu=x*self.a + self.b
-        return mu, x * 0 + self.sigma
-
-    def compute_output_shape(self, input_shape):
-        return input_shape
+import encoders
 
 class model_normal_simple():
     def __init__(self):
         self.encoder, self.decoder = self.get_model_gaussian_simple()
 
     def get_model_gaussian_simple(self):
-        inputs_encode = keras.layers.Input(shape=(1,))
-        layer_encode = model_normal_simple_layer()
-        encoder=keras.models.Model(
-            inputs=inputs_encode,
-            outputs=layer_encode(inputs_encode)
-        )
-
-        inputs_decode = keras.layers.Input(shape=(1,))
-        layer_decode = model_normal_simple_layer()
-        decoder=keras.models.Model(
-            inputs=inputs_decode,
-            outputs=layer_decode(inputs_decode)
-        )
-        
+        encoder = encoders.get_normal_simple_encoder()
+        decoder = encoders.get_normal_simple_encoder()
         return encoder, decoder
 
     def get_z_generator(self):

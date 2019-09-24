@@ -55,33 +55,48 @@ def test_elbo1b():
 
 
 def test_elbo2():
-    epochs=100000
+    epochs=10000
     batch_size=32
-    x = np.random.normal(0,2, (1000,1))
+    zs = np.random.normal(0,1, (1000,1))
+    xs = zs + np.random.normal(0,1, (1000,1))
     model = mns.model_normal_simple()
-    elbo_cal = ec.elbo_calculator(model, x)
+    elbo_cal = ec.elbo_calculator(model, xs)
     optimizer = tf.keras.optimizers.Adamax()
-    options = {'length': 100, 'seed': 1}
+    options = {'length': 100, 'seed': 0}
     for epoch in range(epochs):
-        loss = lambda : elbo_cal.get_elbo(options)
-        optimizer.minimize(loss, model.get_trainable_variables())
-        if epoch % 1000 == 0:
-            print('epoch %s: loss = %s' %(epoch, loss().numpy()))
+        loss_elbo = lambda : elbo_cal.get_elbo(options)
+        optimizer.minimize(loss_elbo, model.get_trainable_variables())
+        if (epoch+1) % 200 == 0:
+            print('epoch %s: loss = %s' %(epoch + 1, loss_elbo().numpy()))
+            
+def test_elbo2a():
+    epochs=10000
+    batch_size=1000
+    zs = np.random.normal(0,1, (1000,1))
+    xs = zs + np.random.normal(0,1, (1000,1))
+    model = mns.model_normal_simple()
+    optimizer = tf.keras.optimizers.Adamax()
+    options = {'length': 100, 'seed': 0}
+    for epoch in range(epochs):
+        loss_func = ec.elbo_calculator().get_loss_func()
+        loss = train.train_one_epoch(model, xs, optimizer, loss_func, y=None, batch_size=batch_size, options=options)
+        if (epoch+1) % 100 == 0:
+            print('epoch %s: loss = %s' %(epoch+1, loss.numpy()))
             
 def test_elbo1():
     epochs=10000
     batch_size=32
     x = np.random.normal(0,1, size=(1200,1))
     model = mvb.model_vae_bayes(dim_z_hidden=1, dim_z=1, input_shape=x.shape[1:], dim_x_hidden=1)
-    elbo_cal = ec.elbo_calculator(model, x)
+    elbo_cal = ec.elbo_calculator()
     optimizer = tf.keras.optimizers.Adamax()
     options = {'length': 100, 'seed': 0}
     for epoch in range(epochs):
-        loss = lambda : elbo_cal.get_elbo(options)
-        optimizer.minimize(loss, model.get_trainable_variables())
-        if epoch % 1000 == 0:
-            print('epoch %s: loss = %s' %(epoch, loss().numpy()))
-
+        loss_func = ec.elbo_calculator().get_loss_func()
+        loss = train.train_one_epoch(model, x, optimizer, loss_func, y=None, batch_size=batch_size, options=options)
+        if (epoch+1) % 100 == 0:
+            print('epoch %s: loss = %s' %(epoch+1, -loss.numpy()))
+            
 def test_elbo4():
     epochs=100000
     batch_size=32
@@ -103,4 +118,4 @@ def test_elbo4():
 ### main
 ###
 
-test_elbo4()
+test_elbo2a()
