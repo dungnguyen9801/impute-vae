@@ -42,7 +42,7 @@ test_cases = \
             'seed': 0
         },
         'use_sgd':True,
-        'report_frequency':100
+        'report_frequency':10
     },
     'normal1':
     {
