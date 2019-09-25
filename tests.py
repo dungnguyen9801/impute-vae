@@ -30,10 +30,10 @@ test_cases = \
 {
     'frey1':
     {
-        'epochs': 5000,
+        'epochs': 10000,
         'batch_size': 32,
         'input_shape': None,
-        'model_dims': (200,10,200),
+        'model_dims': (256,2,256),
         'dataset_loader': load_frey,
         'model_class': mvb.model_vae_bayes,
         'options':
@@ -42,7 +42,7 @@ test_cases = \
             'seed': 0
         },
         'use_sgd':True,
-        'report_frequency':10
+        'report_frequency':100
     },
     'normal1':
     {
