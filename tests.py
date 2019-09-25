@@ -30,8 +30,8 @@ test_cases = \
 {
     'frey1':
     {
-        'epochs': 10000,
-        'batch_size': 32,
+        'epochs': 10000000,
+        'batch_size': 10,
         'input_shape': None,
         'model_dims': (256,2,256),
         'dataset_loader': load_frey,
@@ -42,7 +42,7 @@ test_cases = \
             'seed': 0
         },
         'use_sgd':True,
-        'report_frequency':10
+        'report_frequency':100
     },
     'normal1':
     {
