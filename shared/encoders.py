@@ -20,26 +20,37 @@ def get_bayes_encoder(input_shape, dim_hidden, dim_latent, activation_mu='linear
     )
 
 def get_hi_vae_encoder(dim_input, dim_hidden, dim_latent, s_dim):
-    inputs_layer = keras.layers.Input(shape=(dim_input,))
+    eps = 0.0001
+    x = keras.layers.Input(shape=(dim_input,))
+    mu_x = tf.reduce_mean(x, axis=0)
+    sigma_x = tf.sqrt(tf.reduce_mean((x-mu_x)**2, axis=0) + eps)
+    x_norm = (x_mu_x)/sigma_x
     hidden_layer = keras.layers.Dense(dim_hidden)
     s_prop_layer = keras.layers.Dense(s_dim)
-    inputs=inputs_layer
-    x_s = hidden_layer(inputs)
+    x_s = hidden_layer(x_norm)
     s_prop = s_prop_layer(x_s)
     x_s = tf.keras.backend.repeat(x_s,s_dim)
     id_mat = tf.stack([tf.eye(s_dim)], axis=0)
     id_mat_batch = tf.tile(id_mat, tf.stack([tf.shape(x_s)[0], 1, 1]))
     x_s = tf.concat([x_s, id_mat_batch], axis=-1)
-    mu_layer = keras.layers.Dense(dim_hidden, activation='sigmoid')
-    log_sigma_layer = keras.layers.Dense(dim_hidden, activation='sigmoid')
+    mu_layer = keras.layers.Dense(dim_hidden, activation='linear')
+    log_sigma_layer = keras.layers.Dense(dim_hidden, activation='linear')
     mus  = mu(x_s)
     log_sigmas = log_sigma_s(x_s)
+    beta = tf.Variable(0.5)
+    gamma = tf.Variable(0.5)
     return keras.models.Model(
-        inputs=inputs_layer,
-        outputs= (s_prop, mus, log_sigmas)
+        inputs=x,
+        outputs= (s_prop, mus, log_sigmas, beta*1.0, gamma*1.0)
     )
 
-def get_hi_vae_decoder(dim_hidden, dim_latent, s_dim
+def get_hi_vae_decoder(input_dim, latent_dim, s_dim, column_types):
+    z = keras.layers.Input(shape=(latent_dim,))
+    s = keras.layers.Input(shape=(s_dim,))
+    beta = keras.layers.Input(shape=(1,))
+    gamma = keras.layers.Input(shape=(1,))
+    y = keras.layers.Dense(input_dim)
+    y_s = tf.concat([y,s], axis=-1)
 
 class hi_vae_mixed_gaussian_layer(keras.layers.Layer):
     def __init__(self, **kwargs):
