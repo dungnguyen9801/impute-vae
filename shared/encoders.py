@@ -19,23 +19,27 @@ def get_bayes_encoder(input_shape, dim_hidden, dim_latent, activation_mu='linear
         )
     )
 
-def get_hi_vae_encoder(dim_input, dim_hidden, dim_latent, mix_num):
-    # add batch_normalization???
+def get_hi_vae_encoder(dim_input, dim_hidden, dim_latent, s_dim):
     inputs_layer = keras.layers.Input(shape=(dim_input,))
-    dense_layer = keras.layers.Dense(dim_hidden, activation='sigmoid')
-    softmax_layer = keras.layers.Dense(mix_num, activation='softmax')
-    mu_z = keras.layers.Dense(dim_latent)
-    log_sigma_z = keras.layers.Dense(dim_latent)
+    hidden_layer = keras.layers.Dense(dim_hidden)
+    s_prop_layer = keras.layers.Dense(s_dim)
+    inputs=inputs_layer
+    x_s = hidden_layer(inputs)
+    s_prop = s_prop_layer(x_s)
+    x_s = tf.keras.backend.repeat(x_s,s_dim)
+    id_mat = tf.stack([tf.eye(s_dim)], axis=0)
+    id_mat_batch = tf.tile(id_mat, tf.stack([tf.shape(x_s)[0], 1, 1]))
+    x_s = tf.concat([x_s, id_mat_batch], axis=-1)
+    mu_layer = keras.layers.Dense(dim_hidden, activation='sigmoid')
+    log_sigma_layer = keras.layers.Dense(dim_hidden, activation='sigmoid')
+    mus  = mu(x_s)
+    log_sigmas = log_sigma_s(x_s)
     return keras.models.Model(
         inputs=inputs_layer,
-        outputs=(
-            softmax_layer(dense_layer(inputs_layer)
-            mu_z(dense_layer(inputs_layer)),
-            log_sigma_z(dense_layer(inputs_layer))
-        )
+        outputs= (s_prop, mus, log_sigmas)
     )
 
-def get_hi_vae_decoder(dim_hidden, dim_latent,
+def get_hi_vae_decoder(dim_hidden, dim_latent, s_dim
 
 class hi_vae_mixed_gaussian_layer(keras.layers.Layer):
     def __init__(self, **kwargs):
