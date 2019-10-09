@@ -44,13 +44,33 @@ def get_hi_vae_encoder(dim_input, dim_hidden, dim_latent, s_dim):
         outputs= (s_prop, mus, log_sigmas, beta*1.0, gamma*1.0)
     )
 
-def get_hi_vae_decoder(input_dim, latent_dim, s_dim, column_types):
+def get_hi_vae_decoder(latent_dim, s_dim, column_types):
     z = keras.layers.Input(shape=(latent_dim,))
     s = keras.layers.Input(shape=(s_dim,))
     beta = keras.layers.Input(shape=(1,))
     gamma = keras.layers.Input(shape=(1,))
-    y = keras.layers.Dense(input_dim)
-    y_s = tf.concat([y,s], axis=-1)
+    input_dim = len(column_types)
+    shared_layer = keras.layers.Dense(input_dim)
+    y = shared_layer(z)
+    param_layers = []
+    for t in column_types:
+        if t == 0:
+            prop_layers.append((keras.layers.Dense(1),))
+        elif t == 1:
+            prop.layers.append((keras.layers.Dense(1), keras.layers.Dense(1)))
+        else:
+            prop.layers.append(keras.layers.Dense(t, activation='softmax'))
+    output = []
+    for d in range(input_dim):
+        y_d_s = tf.concat([y[:,d:d+1], s], axis=-1)
+        output.append(list(map(lambda f: f(y_d_s)))
+        if column_types[d] == 1:
+            output[d][0] = output[d][0] * gamma + beta
+            output[d][1] = output[d][1] * gamma
+    return keras.models.Model(
+        inputs=([z.input, s.input, beta.input, gamma.input])
+        outputs= output
+    )
 
 class hi_vae_mixed_gaussian_layer(keras.layers.Layer):
     def __init__(self, **kwargs):
