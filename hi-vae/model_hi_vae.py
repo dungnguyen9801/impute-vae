@@ -38,27 +38,21 @@ class model_hi_vae():
             return s_prop, eps* sigma_z + mu_z
         return func
 
-    def get_func_log_p_z(self):
-        def func(zs):
-            prop_s, zs = zs
-            return -zs**2/2 - 0.5 * tf.math.log(2*np.pi)
-        return func
-
-    def get_func_log_q_z_x(self):
-        def func(zs, x):
-            s_prop, zs
-            mu_z, log_sigma_z = self.encoder(x)
-            sigma_z = tf.math.exp(log_sigma_z)
-            densities = utils.get_gaussian_densities(zs, mu_z, sigma_z)
-        return func
-
-    def get_func_log_p_x_z(self):
+    def get_func_log_p_xz(self):
         def func(zs, x):
             mu_x, log_sigma_x = self.decoder(tf.reshape(zs,(-1, zs.shape[-1])))
             sigma_x = tf.math.exp(log_sigma_x)
             mu_x = tf.reshape(mu_x, (-1, *x.shape))
             sigma_x = tf.reshape(sigma_x,(-1, *x.shape))
-            return utils.get_gaussian_densities(x, mu_x, sigma_x)
+            return tf.math.reduce_sum(utils.get_gaussian_densities(x, mu_x, sigma_x)) \
+                + tf.math.reduce_sum(utils.get_gaussian_densities(zs,0,1))
+        return func
+
+    def get_func_log_q_z_x(self):
+        def func(zs, x):
+            mu_z, log_sigma_z = self.encoder(x)
+            sigma_z = tf.math.exp(log_sigma_z)
+            return tf.math.reduce_sum(utils.get_gaussian_densities(zs, mu_z, sigma_z))
         return func
 
     def get_trainable_variables(self):

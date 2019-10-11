@@ -75,3 +75,6 @@ class model_vae_bayes():
     def get_trainable_variables(self):
         return [self.encoder.trainable_variables, self.decoder.trainable_variables]
 
+    def predict(self, z):
+        mu_x, log_sigma_x = model.decoder(z)
+        return mu_x.numpy()
