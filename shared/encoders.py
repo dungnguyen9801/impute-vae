@@ -5,11 +5,11 @@ from tensorflow import keras
 import matplotlib.pyplot as plt
 import utils
 
-def get_bayes_encoder(input_shape, dim_hidden, dim_latent, activation_mu='linear', activation_sigma='linear'):
+def get_bayes_encoder(input_shape, hidden_dim, latent_dim, activation_mu='linear', activation_sigma='linear'):
     flatten_encode = keras.layers.Flatten()
-    dense_encode = keras.layers.Dense(dim_hidden, activation='tanh')
-    mu_encode = keras.layers.Dense(dim_latent, activation=activation_mu)
-    log_sigma_encode = keras.layers.Dense(dim_latent, activation=activation_sigma)
+    dense_encode = keras.layers.Dense(hidden_dim, activation='tanh')
+    mu_encode = keras.layers.Dense(latent_dim, activation=activation_mu)
+    log_sigma_encode = keras.layers.Dense(latent_dim, activation=activation_sigma)
     inputs_encode = keras.layers.Input(shape=(*input_shape,))
     return keras.models.Model(
         inputs=inputs_encode,
@@ -19,13 +19,13 @@ def get_bayes_encoder(input_shape, dim_hidden, dim_latent, activation_mu='linear
         )
     )
 
-def get_hi_vae_encoder(dim_input, dim_hidden, dim_latent, s_dim):
+def get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim):
     eps = 0.0001
-    x = keras.layers.Input(shape=(dim_input,))
+    x = keras.layers.Input(shape=(input_dim,))
     mu_x = tf.reduce_mean(x, axis=0)
     sigma_x = tf.sqrt(tf.reduce_mean((x-mu_x)**2, axis=0) + eps)
     x_norm = (x_mu_x)/sigma_x
-    hidden_layer = keras.layers.Dense(dim_hidden)
+    hidden_layer = keras.layers.Dense(hidden_dim)
     s_prop_layer = keras.layers.Dense(s_dim)
     x_s = hidden_layer(x_norm)
     s_prop = s_prop_layer(x_s)
@@ -33,15 +33,15 @@ def get_hi_vae_encoder(dim_input, dim_hidden, dim_latent, s_dim):
     id_mat = tf.stack([tf.eye(s_dim)], axis=0)
     id_mat_batch = tf.tile(id_mat, tf.stack([tf.shape(x_s)[0], 1, 1]))
     x_s = tf.concat([x_s, id_mat_batch], axis=-1)
-    mu_layer = keras.layers.Dense(dim_hidden, activation='linear')
-    log_sigma_layer = keras.layers.Dense(dim_hidden, activation='linear')
-    mus  = mu(x_s)
-    log_sigmas = log_sigma_s(x_s)
-    beta = tf.Variable(0.5)
-    gamma = tf.Variable(0.5)
+    mu_layer = keras.layers.Dense(hidden_dim, activation='linear')
+    log_sigma_layer = keras.layers.Dense(hidden_dim, activation='linear')
+    mu_z  = mu(x_s)
+    log_sigma_z = log_sigma_s(x_s)
+    beta = tf.Variable(0.0)
+    gamma = tf.Variable(1.0)
     return keras.models.Model(
         inputs=x,
-        outputs= (s_prop, mus, log_sigmas, beta*1.0, gamma*1.0)
+        outputs= (s_prop, mu_z, log_sigma_z, beta*1.0, gamma*1.0)
     )
 
 def get_hi_vae_decoder(latent_dim, s_dim, column_types):
@@ -76,7 +76,7 @@ class hi_vae_mixed_gaussian_layer(keras.layers.Layer):
     def __init__(self, **kwargs):
         super(hi_vae_mixed_gaussian_layer, self).__init__(**kwargs)
 
-    def build(self, dim_latent, mix_num):
+    def build(self, latent_dim, mix_num):
         # Create a trainable weight variable for this layer.
         simple_init = keras.initializers.Constant(value=0.5)
         self.a = self.add_weight(
@@ -97,7 +97,7 @@ class hi_vae_mixed_gaussian_layer(keras.layers.Layer):
             initializer=simple_init,
             dtype='float32',
             trainable=True)
-        super(model_normal_simple_layer, self).build(imput_shape = (dim_latent,))  # Be sure to call this at the end
+        super(model_normal_simple_layer, self).build(imput_shape = (latent_dim,))  # Be sure to call this at the end
 
     def call(self, x):
         mu=x*self.a + self.b

@@ -18,7 +18,7 @@ def load_frey(shape=None, options=None):
     if shape:
         raise ValueError('shape should be None in load_frey')
     img_rows, img_cols = 28, 20
-    ff = loadmat('../data/freyface/frey_rawface.mat', squeeze_me=True, struct_as_record=False)
+    ff = loadmat('../../data/freyface/frey_rawface.mat', squeeze_me=True, struct_as_record=False)
     return ff["ff"].T.reshape((-1, img_rows, img_cols))/255
 
 def load_normal(shape=None, options=None):

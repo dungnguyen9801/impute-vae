@@ -37,7 +37,7 @@ class model_vae_bayes():
             return -zs**2/2 - 0.5 * tf.math.log(2*np.pi)
         return func
 
-    def get_func_log_q_z_x(self):
+    def get_func_log_q_z_x_1(self):
         def func(zs, x):
             mu_z, log_sigma_z = self.encoder(x)
             sigma_z = tf.math.exp(log_sigma_z)
@@ -51,6 +51,23 @@ class model_vae_bayes():
             mu_x = tf.reshape(mu_x, (-1, *x.shape))
             sigma_x = tf.reshape(sigma_x,(-1, *x.shape))
             return utils.get_gaussian_densities(x, mu_x, sigma_x)
+        return func
+
+    def get_func_log_p_xz(self):
+        def func(zs, x):
+            mu_x, log_sigma_x = self.decoder(tf.reshape(zs,(-1, zs.shape[-1])))
+            sigma_x = tf.math.exp(log_sigma_x)
+            mu_x = tf.reshape(mu_x, (-1, *x.shape))
+            sigma_x = tf.reshape(sigma_x,(-1, *x.shape))
+            return tf.math.reduce_sum(utils.get_gaussian_densities(x, mu_x, sigma_x)) \
+                + tf.math.reduce_sum(utils.get_gaussian_densities(zs,0,1))
+        return func
+
+    def get_func_log_q_z_x(self):
+        def func(zs, x):
+            mu_z, log_sigma_z = self.encoder(x)
+            sigma_z = tf.math.exp(log_sigma_z)
+            return tf.math.reduce_sum(utils.get_gaussian_densities(zs, mu_z, sigma_z))
         return func
 
     def get_trainable_variables(self):

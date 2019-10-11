@@ -25,3 +25,10 @@ class elbo_calculator():
                 + tf.math.reduce_sum(model.get_func_log_p_x_z()(zs, x))
                 - tf.math.reduce_sum(model.get_func_log_q_z_x()(zs, x)))/len(zs)/len(x)
         return func
+
+    def get_loss_func_2(self):
+        def func(model, x,y=None,options=None):
+            zs = model.get_z_generator()(x, options)
+            return -(model.get_func_log_p_xz()(zs, x)
+                - model.get_func_log_q_z_x()(zs, x))/len(zs)/len(x)
+        return func

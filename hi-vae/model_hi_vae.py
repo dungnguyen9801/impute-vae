@@ -1,8 +1,3 @@
-def get_model_hi_vae():
-    batch_norm = tf.keras.layers.BatchNormalization()
-    
-
-
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -12,18 +7,24 @@ import utils
 import encoders
 
 class model_hi_vae():
-    def __init__(self, dim_z_hidden, dim_z, input_shape, dim_x_hidden):
-        self.encoder, self.decoder = self.get_model_vae_gaussian(
+    def __init__(self, input_dim, hidden_dim, latent_dim, s_dim, column_types):
+        self.encoder, self.decoder = self.get_hi_vae_encoder(
             dim_z_hidden, dim_z, input_shape, dim_x_hidden)
             
-    def get_model_vae_gaussian(self, dim_z_hidden, dim_z, input_shape, dim_x_hidden):
-        encoder = encoders.get_bayes_encoder(input_shape, dim_z_hidden, dim_z)
-        decoder = encoders.get_bayes_encoder((dim_z,), dim_x_hidden, np.prod(input_shape), activation_mu='sigmoid')
+    def get_model_hi_vae(
+            self, 
+            input_dim, 
+            hidden_dim,
+            latent_dim,
+            s_dim,
+            column_types):
+        encoder = encoders.get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim)
+        decoder = encoders.get_hi_vae_decoder(latent_dim, s_dim, column_types)
         return encoder, decoder
 
     def get_z_generator(self):
         def func(x, options):
-            mu_z, log_sigma_z = self.encoder(x)
+            s_prop, mu_z, log_sigma_z, beta, gamma = self.encoder(x)
             sigma_z = tf.math.exp(log_sigma_z)
             if not options:
                 L = 100
@@ -33,20 +34,22 @@ class model_hi_vae():
                 seed = options['seed']
             if seed:
                 np.random.seed(seed)
-            eps = np.random.normal(0,1, size = (L, x.shape[0], mu_z.shape[1]))
-            return eps* sigma_z + mu_z
+            eps = np.random.normal(0,1, size = (L, *mu_z.shape))
+            return s_prop, eps* sigma_z + mu_z
         return func
 
     def get_func_log_p_z(self):
         def func(zs):
+            prop_s, zs = zs
             return -zs**2/2 - 0.5 * tf.math.log(2*np.pi)
         return func
 
     def get_func_log_q_z_x(self):
         def func(zs, x):
+            s_prop, zs
             mu_z, log_sigma_z = self.encoder(x)
             sigma_z = tf.math.exp(log_sigma_z)
-            return utils.get_gaussian_densities(zs, mu_z, sigma_z)
+            densities = utils.get_gaussian_densities(zs, mu_z, sigma_z)
         return func
 
     def get_func_log_p_x_z(self):
