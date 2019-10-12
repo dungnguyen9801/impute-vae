@@ -38,7 +38,7 @@ test_cases = \
         'model_class': mvb.model_vae_bayes,
         'options':
         {
-            'length': 100,
+            'length': 10,
             'seed': 0
         },
         'use_sgd':True,

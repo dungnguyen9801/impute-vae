@@ -36,19 +36,30 @@ class model_hi_vae():
                 seed = options['seed']
             if seed:
                 np.random.seed(seed)
-            eps = np.random.normal(0,1, size = (L, *mu_z.shape))
+            s_dim, batch, z_dim = mu_z.shape
+            eps = np.random.normal(0,1, size = (s_dim, L, batch, z_dim))
             return s_prop, beta, gamma, eps* sigma_z + mu_z
         return func
 
     def get_func_log_p_xz(self):
         def func(zs, x):
-            zs, s_prop = zs
-            mu_x, log_sigma_x = self.decoder(tf.reshape(zs,(-1, zs.shape[-1])))
+            zs, s_prop, beta, gamma = zs
+            mu_x, log_sigma_x = self.decoder([
+                tf.reshape(zs,(-1, zs.shape[-1])),
+                s_prop,
+                beta,
+                gamma])
             sigma_x = tf.math.exp(log_sigma_x)
             mu_x = tf.reshape(mu_x, (-1, *x.shape))
             sigma_x = tf.reshape(sigma_x,(-1, *x.shape))
-            return tf.math.reduce_sum(utils.get_gaussian_densities(x, mu_x, sigma_x)) \
-                + tf.math.reduce_sum(utils.get_gaussian_densities(zs,0,1))
+            p_z = utils.get_gaussian_densities(
+                tf.reshape(zs, (len(s_prop), -1)),0,1)
+            p_z = tf.math.reduce_sum(p_z, axis=1)
+            p_x_z = utils.get_gaussian_densities(x, mu_x, sigma_x)
+            p_x_z = tf.reshape(p_x_z, (s_prop, -1))
+            p_x_z = tf.math.reduce_sum(p_x_z, axis=1)
+            # need to account for different data types
+            return tf.matmul(p_x_z + p_z)
         return func
 
     def get_func_log_q_z_x(self):
