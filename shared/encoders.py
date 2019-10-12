@@ -52,23 +52,23 @@ def get_hi_vae_decoder(latent_dim, s_dim, column_types):
     input_dim = len(column_types)
     shared_layer = keras.layers.Dense(input_dim)
     y = shared_layer(z)
-    param_layers = []
+    prop_layers = []
     for t in column_types:
         if t == 0:
             prop_layers.append((keras.layers.Dense(1),))
         elif t == 1:
-            prop.layers.append((keras.layers.Dense(1), keras.layers.Dense(1)))
+            prop_layers.append((keras.layers.Dense(1), keras.layers.Dense(1)))
         else:
-            prop.layers.append(keras.layers.Dense(t, activation='softmax'))
+            prop_layers.append(keras.layers.Dense(t, activation='softmax'))
     output = []
     for d in range(input_dim):
         y_d_s = tf.concat([y[:,d:d+1], s], axis=-1)
-        output.append(list(map(lambda f: f(y_d_s)))
+        output.append(list(map(lambda f: f(y_d_s))))
         if column_types[d] == 1:
             output[d][0] = output[d][0] * gamma + beta
             output[d][1] = output[d][1] * gamma
     return keras.models.Model(
-        inputs=([z.input, s.input, beta.input, gamma.input])
+        inputs=([z.input, s.input, beta.input, gamma.input]),
         outputs= output
     )
 

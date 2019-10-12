@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../shared')
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -35,11 +37,12 @@ class model_hi_vae():
             if seed:
                 np.random.seed(seed)
             eps = np.random.normal(0,1, size = (L, *mu_z.shape))
-            return s_prop, eps* sigma_z + mu_z
+            return s_prop, beta, gamma, eps* sigma_z + mu_z
         return func
 
     def get_func_log_p_xz(self):
         def func(zs, x):
+            zs, s_prop = zs
             mu_x, log_sigma_x = self.decoder(tf.reshape(zs,(-1, zs.shape[-1])))
             sigma_x = tf.math.exp(log_sigma_x)
             mu_x = tf.reshape(mu_x, (-1, *x.shape))
