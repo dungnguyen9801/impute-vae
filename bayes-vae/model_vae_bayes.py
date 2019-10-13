@@ -22,6 +22,7 @@ class model_vae_bayes():
         def func(x, options):
             mu_z, log_sigma_z = self.encoder(x)
             sigma_z = tf.math.exp(log_sigma_z)
+            batch, z_dim = mu_z.shape
             if not options:
                 L = 100
                 seed = 0
@@ -30,8 +31,9 @@ class model_vae_bayes():
                 seed = options['seed']
             if seed:
                 np.random.seed(seed)
-            eps = np.random.normal(0,1, size = (x.shape[0], L, mu_z.shape[1]))
-            return eps* sigma_z + mu_z
+            eps = np.random.normal(0,1, size = (batch, L, z_dim))
+            return eps* tf.reshape(sigma_z, (batch, 1, 
+                z_dim)) + tf.reshape(mu_z, (batch, 1, z_dim))
         return func
 
     def get_func_log_p_z(self):
@@ -60,5 +62,5 @@ class model_vae_bayes():
         return [self.encoder.trainable_variables, self.decoder.trainable_variables]
 
     def predict(self, z):
-        mu_x, log_sigma_x = self.decoder(z)
+        mu_x, _ = self.decoder(z)
         return mu_x.numpy()

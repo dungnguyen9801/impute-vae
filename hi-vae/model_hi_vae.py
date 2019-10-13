@@ -11,9 +11,14 @@ import encoders
 class model_hi_vae():
     def __init__(self, input_dim, hidden_dim, latent_dim, s_dim, column_types):
         self.encoder, self.decoder = self.get_hi_vae_encoder(
-            dim_z_hidden, dim_z, input_shape, dim_x_hidden)
+            input_dim, 
+            hidden_dim,
+            latent_dim,
+            s_dim,
+            column_types)
+        self.column_types = column_types
             
-    def get_model_hi_vae(
+    def get_hi_vae_encoder(
             self, 
             input_dim, 
             hidden_dim,
@@ -37,29 +42,49 @@ class model_hi_vae():
             if seed:
                 np.random.seed(seed)
             s_dim, batch, z_dim = mu_z.shape
-            eps = np.random.normal(0,1, size = (s_dim, L, batch, z_dim))
-            return s_prop, beta, gamma, eps* sigma_z + mu_z
+            eps = np.random.normal(0,1, size = (s_dim, batch, L, z_dim))
+            return s_prop, beta, gamma, eps* tf.reshape(
+                sigma_z, (s_dim, batch, 1, z_dim)) + tf.reshape(mu_z,
+                (s_dim, batch, 1, z_dim))
         return func
 
     def get_func_log_p_xz(self):
         def func(zs, x):
             zs, s_prop, beta, gamma = zs
-            mu_x, log_sigma_x = self.decoder([
+            s_dim = len(s_prop)
+            output = self.decoder([
                 tf.reshape(zs,(-1, zs.shape[-1])),
                 s_prop,
                 beta,
                 gamma])
-            sigma_x = tf.math.exp(log_sigma_x)
-            mu_x = tf.reshape(mu_x, (-1, *x.shape))
-            sigma_x = tf.reshape(sigma_x,(-1, *x.shape))
             p_z = utils.get_gaussian_densities(
-                tf.reshape(zs, (len(s_prop), -1)),0,1)
-            p_z = tf.math.reduce_sum(p_z, axis=1)
-            p_x_z = utils.get_gaussian_densities(x, mu_x, sigma_x)
-            p_x_z = tf.reshape(p_x_z, (s_prop, -1))
-            p_x_z = tf.math.reduce_sum(p_x_z, axis=1)
-            # need to account for different data types
-            return tf.matmul(p_x_z + p_z)
+                tf.reshape(zs, (s_dim, -1)),0,1)
+            p_z = tf.math.reduce_sum(p_z, axis=1) 
+            p_x_z = 0
+            i = 0
+            for j, t in enumerate(self.column_types):
+                if t == 1:
+                    mu_x, log_sigma_x = output[:,j]
+                    sigma_x = tf.math.exp(log_sigma_x)
+                    p = utils.get_gaussian_densities(
+                        x[:,i], mu_x, sigma_x)
+                    p = tf.reshape(p, (s_dim, -1))
+                    p_x_z = p_x_z + p
+                    i += 1
+                elif t == 0:
+                    log_lambda_x = output[:, j]
+                    p = tf.nn.log_poisson_loss(
+                            x[:, i],
+                            log_lambda_x)
+                    p = tf.reshape(p, (s_dim, -1))
+                    p_x_z = p_x_z + p
+                    i += 1
+                else:
+                    p = tf.math.log(output[:,j] * x[:,i:i+t])
+                    p = tf.reshape(p, (s_dim, -1))
+                    p_x_z = p_x_z + p
+                    i += t
+            return tf.matmul(s_prop, p_x_z + p_z)
         return func
 
     def get_func_log_q_z_x(self):
