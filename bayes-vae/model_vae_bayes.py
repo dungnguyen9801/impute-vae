@@ -31,9 +31,8 @@ class model_vae_bayes():
                 seed = options['seed']
             if seed:
                 np.random.seed(seed)
-            eps = np.random.normal(0,1, size = (batch, L, z_dim))
-            return eps* tf.reshape(sigma_z, (batch, 1, 
-                z_dim)) + tf.reshape(mu_z, (batch, 1, z_dim))
+            eps = np.random.normal(0,1, size = (L, batch, z_dim))
+            return eps * sigma_z + mu_z
         return func
 
     def get_func_log_p_z(self):

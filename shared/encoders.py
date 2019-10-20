@@ -25,33 +25,36 @@ def get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim):
     mu_x = tf.reduce_mean(x, axis=0)
     sigma_x = tf.sqrt(tf.reduce_mean((x-mu_x)**2, axis=0) + eps)
     x_norm = (x-mu_x)/sigma_x
-    hidden_layer = keras.layers.Dense(hidden_dim)
-    s_prop_layer = keras.layers.Dense(s_dim)
+    hidden_layer = keras.layers.Dense(hidden_dim, activation='tanh')
+    s_prop_layer = keras.layers.Dense(s_dim, activation='softmax')
     x_s = hidden_layer(x_norm)
     s_prop = s_prop_layer(x_s)
     x_s = tf.keras.backend.repeat(x_s,s_dim)
     id_mat = tf.stack([tf.eye(s_dim)], axis=0)
-    id_mat_batch = tf.tile(id_mat, tf.stack([tf.shape(x_s)[0], 1, 1]))
+    id_mat_batch = tf.tile(id_mat, tf.stack([tf.shape(x_s)[0], 1, 1], name='stack_x'))
     x_s = tf.concat([x_s, id_mat_batch], axis=-1)
-    mu = keras.layers.Dense(hidden_dim, activation='linear')
-    log_sigma = keras.layers.Dense(hidden_dim, activation='linear')
+    mu = keras.layers.Dense(latent_dim, activation='linear')
+    log_sigma = keras.layers.Dense(latent_dim, activation='linear')
     mu_z  = mu(x_s)
     log_sigma_z = log_sigma(x_s)
+    mu_z = tf.transpose(mu_z, [1,0,2])
+    log_sigma_z = tf.transpose(log_sigma_z, [1,0,2])
     beta = tf.Variable(0.0)
     gamma = tf.Variable(1.0)
     return keras.models.Model(
         inputs=x,
-        outputs= (s_prop, mu_z, log_sigma_z, beta*1.0, gamma*1.0)
+        outputs=(s_prop, mu_z, log_sigma_z, beta+ .0*x[0,0], gamma + .0*x[0,0])
     )
 
 def get_hi_vae_decoder(latent_dim, s_dim, column_types):
     z = keras.layers.Input(shape=(latent_dim,))
-    s = keras.layers.Input(shape=(s_dim,))
     beta = keras.layers.Input(shape=(1,))
     gamma = keras.layers.Input(shape=(1,))
     input_dim = len(column_types)
     shared_layer = keras.layers.Dense(input_dim)
     y = shared_layer(z)
+    id_mat = tf.stack([tf.eye(s_dim)], axis=0)
+    id_mat_batch = tf.tile(id_mat, tf.stack([tf.shape(y)[0], 1, 1], name ='stack_y'))
     prop_layers = []
     for t in column_types:
         if t == 0:
@@ -59,16 +62,19 @@ def get_hi_vae_decoder(latent_dim, s_dim, column_types):
         elif t == 1:
             prop_layers.append((keras.layers.Dense(1), keras.layers.Dense(1)))
         else:
-            prop_layers.append(keras.layers.Dense(t, activation='softmax'))
+            prop_layers.append((keras.layers.Dense(t, activation='softmax'),))
     output = []
     for d in range(input_dim):
-        y_d_s = tf.concat([y[:,d:d+1], s], axis=-1)
-        output.append(list(map(lambda f: f(y_d_s))))
+        y_d_s = tf.concat(
+            [tf.keras.backend.repeat(y[:,d:d+1], s_dim),
+                id_mat_batch],
+            axis=-1)
+        output.append(list(map(lambda f: f(y_d_s), prop_layers[d])))
         if column_types[d] == 1:
             output[d][0] = output[d][0] * gamma + beta
             output[d][1] = output[d][1] * gamma
     return keras.models.Model(
-        inputs=([z.input, s.input, beta.input, gamma.input]),
+        inputs=([z, beta, gamma]),
         outputs= output
     )
 

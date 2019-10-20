@@ -25,12 +25,12 @@ class model_hi_vae():
             latent_dim,
             s_dim,
             column_types):
-        encoder = encoders.get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim)
         decoder = encoders.get_hi_vae_decoder(latent_dim, s_dim, column_types)
+        encoder = encoders.get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim)
         return encoder, decoder
 
     def get_z_generator(self):
-        def func(x, options):
+        def func(x, options=None):
             s_prop, mu_z, log_sigma_z, beta, gamma = self.encoder(x)
             sigma_z = tf.math.exp(log_sigma_z)
             if not options:
@@ -42,10 +42,8 @@ class model_hi_vae():
             if seed:
                 np.random.seed(seed)
             s_dim, batch, z_dim = mu_z.shape
-            eps = np.random.normal(0,1, size = (s_dim, batch, L, z_dim))
-            return s_prop, beta, gamma, eps* tf.reshape(
-                sigma_z, (s_dim, batch, 1, z_dim)) + tf.reshape(mu_z,
-                (s_dim, batch, 1, z_dim))
+            eps = np.random.normal(0,1, size = (L, s_dim, batch, z_dim))
+            return (s_prop, beta, gamma, tf.transpose(eps*sigma_z + mu_z, [1,0,2,3]))
         return func
 
     def get_func_log_p_xz(self):
@@ -54,7 +52,6 @@ class model_hi_vae():
             s_dim = len(s_prop)
             output = self.decoder([
                 tf.reshape(zs,(-1, zs.shape[-1])),
-                s_prop,
                 beta,
                 gamma])
             p_z = utils.get_gaussian_densities(
