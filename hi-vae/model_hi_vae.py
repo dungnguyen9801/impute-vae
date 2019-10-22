@@ -43,7 +43,7 @@ class model_hi_vae():
                 np.random.seed(seed)
             s_dim, batch, z_dim = mu_z.shape
             eps = np.random.normal(0,1, size = (L, s_dim, batch, z_dim))
-            return (s_prop, beta, gamma, tf.transpose(eps*sigma_z + mu_z, [1,0,2,3]))
+            return (tf.transpose(eps*sigma_z + mu_z, [1,0,2,3]), s_prop, beta, gamma)
         return func
 
     def get_func_log_p_xz(self):
@@ -86,9 +86,16 @@ class model_hi_vae():
 
     def get_func_log_q_z_x(self):
         def func(zs, x):
+            zs, s_prop, _, _ = zs
+            s_dim = len(s_prop)
+            zs = tf.transpose(zs, [1,0,2,3])
             mu_z, log_sigma_z = self.encoder(x)
             sigma_z = tf.math.exp(log_sigma_z)
-            return tf.math.reduce_sum(utils.get_gaussian_densities(zs, mu_z, sigma_z))
+            densities = tf.transpose(
+                utils.get_gaussian_densities(zs, mu_z, sigma_z),
+                [1,0,2,3])
+            densities = tf.reshape(densities, (s_dim,-1))
+            return tf.matmul(s_prop, densities)
         return func
 
     def get_trainable_variables(self):
