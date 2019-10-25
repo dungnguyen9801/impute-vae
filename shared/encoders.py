@@ -26,9 +26,9 @@ def get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim):
     sigma_x = tf.sqrt(tf.reduce_mean((x-mu_x)**2, axis=0) + eps)
     x_norm = (x-mu_x)/sigma_x
     hidden_layer = keras.layers.Dense(hidden_dim, activation='tanh')
-    s_prop_layer = keras.layers.Dense(s_dim, activation='softmax')
+    s_probs_layer = keras.layers.Dense(s_dim, activation='softmax')
     x_s = hidden_layer(x_norm)
-    s_prop = s_prop_layer(x_s)
+    s_probs = s_probs_layer(x_s)
     x_s = tf.keras.backend.repeat(x_s,s_dim)
     id_mat = tf.stack([tf.eye(s_dim)], axis=0)
     id_mat_batch = tf.tile(id_mat, tf.stack([tf.shape(x_s)[0], 1, 1], name='stack_x'))
@@ -43,7 +43,7 @@ def get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim):
     gamma = tf.Variable(1.0)
     return keras.models.Model(
         inputs=x,
-        outputs=(s_prop, mu_z, log_sigma_z, beta+ .0*x[0,0], gamma + .0*x[0,0])
+        outputs=(s_probs, mu_z, log_sigma_z, beta+ .0*x[0,0], gamma + .0*x[0,0])
     )
 
 def get_hi_vae_decoder(latent_dim, s_dim, column_types):
@@ -53,8 +53,10 @@ def get_hi_vae_decoder(latent_dim, s_dim, column_types):
     input_dim = len(column_types)
     shared_layer = keras.layers.Dense(input_dim)
     y = shared_layer(z)
-    id_mat = tf.stack([tf.eye(s_dim)], axis=0)
-    id_mat_batch = tf.tile(id_mat, tf.stack([tf.shape(y)[0], 1, 1], name ='stack_y'))
+    s_tail = tf.keras.backend.repeat(
+        tf.eye(s_dim),
+        tf.shape(z)[0]//s_dim)
+    s_tail = tf.reshape(s_tail, (-1, s_dim))
     prop_layers = []
     for t in column_types:
         if t == 0:
@@ -66,8 +68,7 @@ def get_hi_vae_decoder(latent_dim, s_dim, column_types):
     output = []
     for d in range(input_dim):
         y_d_s = tf.concat(
-            [tf.keras.backend.repeat(y[:,d:d+1], s_dim),
-                id_mat_batch],
+            [y[:,d:d+1], s_tail],
             axis=-1)
         output.append(list(map(lambda f: f(y_d_s), prop_layers[d])))
         if column_types[d] == 1:
