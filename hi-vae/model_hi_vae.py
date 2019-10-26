@@ -61,7 +61,7 @@ class model_hi_vae():
             p_x_z = 0
             i = 0
             for j, t in enumerate(self.column_types):
-                if t == 1:
+                if t == 1 or t == -1:
                     mu_x, log_sigma_x = output[j]
                     sigma_x = tf.math.exp(log_sigma_x)
                     p = utils.get_gaussian_densities(

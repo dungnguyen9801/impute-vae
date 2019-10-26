@@ -61,7 +61,7 @@ def get_hi_vae_decoder(latent_dim, s_dim, column_types):
     for t in column_types:
         if t == 0:
             prop_layers.append((keras.layers.Dense(1),))
-        elif t == 1:
+        elif t == 1 or t == -1:
             prop_layers.append((keras.layers.Dense(1), keras.layers.Dense(1)))
         else:
             prop_layers.append((keras.layers.Dense(t, activation='softmax'),))
