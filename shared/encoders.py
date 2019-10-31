@@ -3,7 +3,9 @@ import pandas as pd
 import numpy as np
 from tensorflow import keras
 import matplotlib.pyplot as plt
-import utils
+import sys
+sys.path.append('../')
+from shared     import utils
 
 def get_bayes_encoder(input_shape, hidden_dim, latent_dim, activation_mu='linear', activation_sigma='linear'):
     flatten_encode = keras.layers.Flatten()
@@ -25,16 +27,16 @@ def get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim):
     mu_x = tf.reduce_mean(x, axis=0)
     sigma_x = tf.sqrt(tf.reduce_mean((x-mu_x)**2, axis=0) + eps)
     x_norm = (x-mu_x)/sigma_x
-    hidden_layer = keras.layers.Dense(hidden_dim, activation='tanh')
-    s_probs_layer = keras.layers.Dense(s_dim, activation='softmax')
+    hidden_layer = keras.layers.Dense(hidden_dim, activation='tanh', name='hidden')
+    s_probs_layer = keras.layers.Dense(s_dim, activation='softmax', name='s_probs')
     x_s = hidden_layer(x_norm)
     s_probs = s_probs_layer(x_s)
     x_s = tf.keras.backend.repeat(x_s,s_dim)
     id_mat = tf.stack([tf.eye(s_dim)], axis=0)
     id_mat_batch = tf.tile(id_mat, tf.stack([tf.shape(x_s)[0], 1, 1], name='stack_x'))
     x_s = tf.concat([x_s, id_mat_batch], axis=-1)
-    mu = keras.layers.Dense(latent_dim, activation='linear')
-    log_sigma = keras.layers.Dense(latent_dim, activation='linear')
+    mu = keras.layers.Dense(latent_dim, activation='linear', name='mu')
+    log_sigma = keras.layers.Dense(latent_dim, activation='linear', name='sigma')
     mu_z  = mu(x_s)
     log_sigma_z = log_sigma(x_s)
     mu_z = tf.transpose(mu_z, [1,0,2])
@@ -48,8 +50,8 @@ def get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim):
 
 def get_hi_vae_decoder(latent_dim, s_dim, column_types):
     z = keras.layers.Input(shape=(latent_dim,))
-    beta = keras.layers.Input(shape=(1,))
-    gamma = keras.layers.Input(shape=(1,))
+    beta = keras.layers.Input(shape=(None,))
+    gamma = keras.layers.Input(shape=(None,))
     input_dim = len(column_types)
     shared_layer = keras.layers.Dense(input_dim)
     y = shared_layer(z)

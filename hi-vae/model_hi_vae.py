@@ -1,12 +1,11 @@
 import sys
-sys.path.append('../shared')
+sys.path.append('../')
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 from tensorflow import keras
 import matplotlib.pyplot as plt
-import utils
-import encoders
+from shared import utils, encoders
 
 class model_hi_vae():
     def __init__(self, input_dim, hidden_dim, latent_dim, s_dim, column_types):
@@ -87,7 +86,7 @@ class model_hi_vae():
                 else:
                     probs = output[j][0]
                     probs = tf.reshape(probs,[-1, batch, t])
-                    p = tf.math.log(probs * x[:,i:i+t])
+                    p = tf.math.log(tf.math.reduce_sum(probs * x[:,i:i+t], axis=-1))
                     p = tf.reshape(p, [s_dim, batch, -1])
                     p = tf.math.reduce_sum(p, axis=-1)
                     p_x_z = p_x_z + p
