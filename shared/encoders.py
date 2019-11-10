@@ -73,7 +73,7 @@ def get_hi_vae_decoder(latent_dim, s_dim, column_types):
             [y[:,d:d+1], s_tail],
             axis=-1)
         output.append(list(map(lambda f: f(y_d_s), prop_layers[d])))
-        if column_types[d] == 1:
+        if column_types[d] == 1 or column_types[d] == -1:
             output[d][0] = output[d][0] * gamma + beta
             output[d][1] = output[d][1] * gamma
     return keras.models.Model(

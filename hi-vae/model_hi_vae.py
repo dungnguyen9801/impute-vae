@@ -48,6 +48,7 @@ class model_hi_vae():
     def get_func_log_p_xz(self):
         def func(zs, x):
             zs, s_probs, beta, gamma = zs
+            L = tf.shape(zs)[1].numpy()
             s_dim = tf.shape(s_probs)[-1]
             batch = len(s_probs)
             output = self.decoder([
@@ -66,7 +67,7 @@ class model_hi_vae():
                     p = utils.get_gaussian_densities(
                         x[:,i:i+1],
                         tf.reshape(mu_x, [-1, batch, 1]),
-                        tf.reshape(sigma_x, [-1, batch, 1]))
+                        tf.reshape(sigma_x, [-1, batch, 1]))/L
                     p = tf.reshape(p, [s_dim, batch, -1])
                     p = tf.math.reduce_sum(p, axis=-1)
                     p_x_z = p_x_z + p
@@ -78,7 +79,7 @@ class model_hi_vae():
                             tf.broadcast_to(
                                 x[:, i:i+1],
                                 tf.shape(log_lambda_x)),
-                            log_lambda_x)
+                            log_lambda_x)/L
                     p = tf.reshape(p, [s_dim, batch, -1])
                     p = tf.math.reduce_sum(p, axis=-1)
                     p_x_z = p_x_z + p
@@ -86,7 +87,7 @@ class model_hi_vae():
                 else:
                     probs = output[j][0]
                     probs = tf.reshape(probs,[-1, batch, t])
-                    p = tf.math.log(tf.math.reduce_sum(probs * x[:,i:i+t], axis=-1))
+                    p = tf.math.log(tf.math.reduce_sum(probs * x[:,i:i+t], axis=-1))/L
                     p = tf.reshape(p, [s_dim, batch, -1])
                     p = tf.math.reduce_sum(p, axis=-1)
                     p_x_z = p_x_z + p
@@ -97,15 +98,18 @@ class model_hi_vae():
     def get_func_log_q_z_x(self):
         def func(zs, x):
             zs, s_probs, _, _ = zs
+            L = tf.shape(zs)[0].numpy()
+            batch = x.shape[0]
             s_dim = tf.shape(s_probs)[-1]
             zs = tf.transpose(zs, [1,0,2,3])
             _, mu_z, log_sigma_z, _, _ = self.encoder(x)
             sigma_z = tf.math.exp(log_sigma_z)
             densities = tf.transpose(
                 utils.get_gaussian_densities(zs, mu_z, sigma_z),
-                [1,0,2,3])
-            densities = tf.reshape(densities, [s_dim,-1])
-            return tf.matmul(s_probs, densities)
+                [1,0,2,3])/L
+            densities = tf.reshape(densities, [s_dim, batch, -1])
+            densities = tf.math.reduce_sum(densities, axis=-1)
+            return tf.math.reduce_sum(tf.transpose(s_probs) * densities)
         return func
 
     def get_trainable_variables(self):

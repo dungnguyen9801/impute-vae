@@ -1,0 +1,8 @@
+VAE_functions.py
+
+type_list = [data_types]
+where data_types[i] is the type of data column[i]
+data_types[i] = dictionary, with keys being 'dim', 'type' etc
+
+batch_data_list[i] = batch_size*data_types[i]['dim'] tensor
+miss_list = batch_size * num_columns 0-1 indicator matrix of where data is missing.

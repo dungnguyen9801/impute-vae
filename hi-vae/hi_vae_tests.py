@@ -26,6 +26,13 @@ def hi_vae_random_data_load():
     x = tf.concat([x0,x1,x2,x3,x4,x5], axis=-1).numpy().astype(np.float32)
     return x, column_types
 
+def hi_vae_wine_data_load():
+    column_types=[3] + [-1]*12
+    data = np.loadtxt('../../data/wine.data', delimiter=',').astype(np.float32)
+    classes = tf.one_hot(data[:,0].astype(np.int)-1, 3).numpy()
+    x = tf.concat([classes, data[:, 1:]], axis=-1).numpy().astype(np.float32)
+    return x, column_types
+
 test_cases = \
 {
     'hi_vae1':
@@ -38,8 +45,24 @@ test_cases = \
         'model_class': mhv.model_hi_vae,
         'options':
         {
-            'length': 10,
+            'length': 1,
             'seed': 0
+        },
+        'use_sgd':True,
+        'report_frequency':100
+    },
+    'hi_vae_wine':
+    {
+        'epochs': 2000000,
+        'batch_size': 1,
+        'input_shape': None,
+        'model_dims': (256,2,256),
+        'dataset_loader': hi_vae_wine_data_load,
+        'model_class': mhv.model_hi_vae,
+        'options':
+        {
+            'length': 10,
+            'seed': 1
         },
         'use_sgd':True,
         'report_frequency':100
