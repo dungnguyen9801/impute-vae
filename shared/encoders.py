@@ -21,7 +21,7 @@ def get_bayes_encoder(input_shape, hidden_dim, latent_dim, activation_mu='linear
         )
     )
 
-def get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim):
+def get_hi_vae_encoder(column_types, input_dim, hidden_dim, latent_dim, s_dim):
     eps = 0.0001
     x = keras.layers.Input(shape=(input_dim,))
     mu_x = tf.reduce_mean(x, axis=0)
@@ -48,7 +48,7 @@ def get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim):
         outputs=(s_probs, mu_z, log_sigma_z, beta+ .0*x[0,0], gamma + .0*x[0,0])
     )
 
-def get_hi_vae_decoder(latent_dim, s_dim, column_types):
+def get_hi_vae_decoder(column_types, latent_dim, s_dim):
     z = keras.layers.Input(shape=(latent_dim,))
     beta = keras.layers.Input(shape=(None,))
     gamma = keras.layers.Input(shape=(None,))
@@ -61,9 +61,9 @@ def get_hi_vae_decoder(latent_dim, s_dim, column_types):
     s_tail = tf.reshape(s_tail, (-1, s_dim))
     prop_layers = []
     for t in column_types:
-        if t == 0:
+        if t == 'count':
             prop_layers.append((keras.layers.Dense(1),))
-        elif t == 1 or t == -1:
+        elif t == 'real' or t == 'positive':
             prop_layers.append((keras.layers.Dense(1), keras.layers.Dense(1)))
         else:
             prop_layers.append((keras.layers.Dense(t, activation='softmax'),))
@@ -73,7 +73,7 @@ def get_hi_vae_decoder(latent_dim, s_dim, column_types):
             [y[:,d:d+1], s_tail],
             axis=-1)
         output.append(list(map(lambda f: f(y_d_s), prop_layers[d])))
-        if column_types[d] == 1 or column_types[d] == -1:
+        if column_types[d] == 'real' or column_types[d] == 'positive':
             output[d][0] = output[d][0] * gamma + beta
             output[d][1] = output[d][1] * gamma
     return keras.models.Model(

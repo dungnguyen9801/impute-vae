@@ -12,7 +12,7 @@ import elbo_calculator as ec
 import train
 import os
 from scipy.io import loadmat
-import hi_vae_tests as tests
+import hi_vae_test_help as tests
 #%load_ext autoreload
 test_case_name='hi_vae_wine'
 test_case = tests.test_cases[test_case_name]

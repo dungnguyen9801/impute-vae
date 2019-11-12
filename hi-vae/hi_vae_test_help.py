@@ -12,6 +12,7 @@ import elbo_calculator as ec
 import train
 import argparse
 import os
+import utils
 from scipy.io import loadmat
 
 def hi_vae_random_data_load():
@@ -27,11 +28,11 @@ def hi_vae_random_data_load():
     return x, column_types
 
 def hi_vae_wine_data_load():
-    column_types=[3] + [-1]*12
+    column_types=[3] + ['positive']*12
     data = np.loadtxt('../../data/wine.data', delimiter=',').astype(np.float32)
     classes = tf.one_hot(data[:,0].astype(np.int)-1, 3).numpy()
     x = tf.concat([classes, data[:, 1:]], axis=-1).numpy().astype(np.float32)
-    return x, column_types
+    return utils.transform_data_hi_vae(x, column_types), column_types
 
 test_cases = \
 {

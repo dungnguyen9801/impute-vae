@@ -24,8 +24,15 @@ class model_hi_vae():
             latent_dim,
             s_dim,
             column_types):
-        decoder = encoders.get_hi_vae_decoder(latent_dim, s_dim, column_types)
-        encoder = encoders.get_hi_vae_encoder(input_dim, hidden_dim, latent_dim, s_dim)
+        decoder = encoders.get_hi_vae_decoder(
+            column_types,
+            latent_dim,
+            s_dim)
+        encoder = encoders.get_hi_vae_encoder(
+            column_types,
+            input_dim, hidden_dim,
+            latent_dim,
+            s_dim)
         return encoder, decoder
 
     def get_z_generator(self):
@@ -61,7 +68,7 @@ class model_hi_vae():
             p_x_z = 0
             i = 0
             for j, t in enumerate(self.column_types):
-                if t == 1 or t == -1:
+                if t == 'real' or t == 'positive':
                     mu_x, log_sigma_x = output[j]
                     sigma_x = tf.math.exp(log_sigma_x)
                     p = utils.get_gaussian_densities(
@@ -72,7 +79,7 @@ class model_hi_vae():
                     p = tf.math.reduce_sum(p, axis=-1)
                     p_x_z = p_x_z + p
                     i += 1
-                elif t == 0:
+                elif t == 'count':
                     log_lambda_x = output[j][0]
                     log_lambda_x = tf.reshape(log_lambda_x, [-1,tf.shape(x)[0],1])
                     p = tf.nn.log_poisson_loss(

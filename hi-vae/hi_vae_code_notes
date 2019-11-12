@@ -6,3 +6,5 @@ data_types[i] = dictionary, with keys being 'dim', 'type' etc
 
 batch_data_list[i] = batch_size*data_types[i]['dim'] tensor
 miss_list = batch_size * num_columns 0-1 indicator matrix of where data is missing.
+
+s_proposal_multinomial: return s_samples (soft one-hot), and log-probability of each s_model
