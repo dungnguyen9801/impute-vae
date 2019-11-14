@@ -23,9 +23,10 @@ def get_bayes_encoder(input_shape, hidden_dim, latent_dim, activation_mu='linear
 
 def get_hi_vae_encoder(column_types, input_dim, hidden_dim, latent_dim, s_dim):
     eps = 0.0001
+    cont_ids = utils.get_continuous_columns(column_types)
     x = keras.layers.Input(shape=(input_dim,))
-    mu_x = tf.reduce_mean(x, axis=0)
-    sigma_x = tf.sqrt(tf.reduce_mean((x-mu_x)**2, axis=0) + eps)
+    mu_x = tf.reduce_mean(x*cont_ids, axis=0)
+    sigma_x = tf.sqrt(tf.reduce_mean((x*cont_ids-mu_x)**2, axis=0) + eps) + 1 - cont_ids
     x_norm = (x-mu_x)/sigma_x
     hidden_layer = keras.layers.Dense(hidden_dim, activation='tanh', name='hidden')
     s_probs_layer = keras.layers.Dense(s_dim, activation='softmax', name='s_probs')
@@ -60,20 +61,22 @@ def get_hi_vae_decoder(column_types, latent_dim, s_dim):
         tf.shape(z)[0]//s_dim)
     s_tail = tf.reshape(s_tail, (-1, s_dim))
     prop_layers = []
-    for t in column_types:
-        if t == 'count':
+    for column in column_types:
+        type_, dim = column['type'], column['dim']
+        if type_ == 'count':
             prop_layers.append((keras.layers.Dense(1),))
-        elif t == 'real' or t == 'positive':
+        elif type_ == 'real' or type_ == 'positive':
             prop_layers.append((keras.layers.Dense(1), keras.layers.Dense(1)))
         else:
-            prop_layers.append((keras.layers.Dense(t, activation='softmax'),))
+            prop_layers.append((keras.layers.Dense(dim, activation='softmax'),))
     output = []
-    for d in range(input_dim):
+    for d, column in enumerate(column_types):
+        type_, dim = column['type'], column['dim']
         y_d_s = tf.concat(
             [y[:,d:d+1], s_tail],
             axis=-1)
         output.append(list(map(lambda f: f(y_d_s), prop_layers[d])))
-        if column_types[d] == 'real' or column_types[d] == 'positive':
+        if type_ == 'real' or type_ == 'positive':
             output[d][0] = output[d][0] * gamma + beta
             output[d][1] = output[d][1] * gamma
     return keras.models.Model(

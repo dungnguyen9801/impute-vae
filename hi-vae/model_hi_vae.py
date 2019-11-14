@@ -67,38 +67,37 @@ class model_hi_vae():
             p_z = tf.math.reduce_sum(p_z, axis=-1) 
             p_x_z = 0
             i = 0
-            for j, t in enumerate(self.column_types):
-                if t == 'real' or t == 'positive':
+            for j, column in enumerate(self.column_types):
+                type_, dim = column['type'], column['dim']
+                if type_ == 'real' or type_ == 'positive':
                     mu_x, log_sigma_x = output[j]
                     sigma_x = tf.math.exp(log_sigma_x)
                     p = utils.get_gaussian_densities(
-                        x[:,i:i+1],
+                        x[:,i:i+dim],
                         tf.reshape(mu_x, [-1, batch, 1]),
                         tf.reshape(sigma_x, [-1, batch, 1]))/L
                     p = tf.reshape(p, [s_dim, batch, -1])
                     p = tf.math.reduce_sum(p, axis=-1)
                     p_x_z = p_x_z + p
-                    i += 1
-                elif t == 'count':
+                elif type_ == 'count':
                     log_lambda_x = output[j][0]
                     log_lambda_x = tf.reshape(log_lambda_x, [-1,tf.shape(x)[0],1])
                     p = tf.nn.log_poisson_loss(
                             tf.broadcast_to(
-                                x[:, i:i+1],
+                                x[:, i:i+dim],
                                 tf.shape(log_lambda_x)),
                             log_lambda_x)/L
                     p = tf.reshape(p, [s_dim, batch, -1])
                     p = tf.math.reduce_sum(p, axis=-1)
                     p_x_z = p_x_z + p
-                    i += 1
                 else:
                     probs = output[j][0]
-                    probs = tf.reshape(probs,[-1, batch, t])
-                    p = tf.math.log(tf.math.reduce_sum(probs * x[:,i:i+t], axis=-1))/L
+                    probs = tf.reshape(probs,[-1, batch, dim])
+                    p = tf.math.log(tf.math.reduce_sum(probs * x[:,i:i+dim], axis=-1))/L
                     p = tf.reshape(p, [s_dim, batch, -1])
                     p = tf.math.reduce_sum(p, axis=-1)
                     p_x_z = p_x_z + p
-                    i += t
+                i += dim
             return tf.math.reduce_sum(tf.transpose(s_probs) * (p_x_z + p_z))
         return func
 

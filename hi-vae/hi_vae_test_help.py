@@ -17,7 +17,13 @@ from scipy.io import loadmat
 
 def hi_vae_random_data_load():
     rows = 1000
-    column_types=[1,1,0,3,2,1]
+    column_types=[
+        {'type': 'real', 'dim':1},
+        {'type': 'real', 'dim':1},
+        {'type': 'count', 'dim':1},
+        {'type': 'categorical', 'dim':3},
+        {'type': 'categorical', 'dim':2},
+        {'type': 'real', 'dim':1}]
     x0 = np.random.normal(1,2,size=(rows,1))
     x1 = np.random.normal(0,1,size=(rows,1))
     x2 = np.log(np.random.poisson(1.5,size=(rows,1))+ 0.01)
@@ -28,7 +34,8 @@ def hi_vae_random_data_load():
     return x, column_types
 
 def hi_vae_wine_data_load():
-    column_types=[3] + ['positive']*12
+    column_types=[{'type':'categorical', 'dim':3}] +\
+         [{'type': 'positive', 'dim':1}]*12
     data = np.loadtxt('../../data/wine.data', delimiter=',').astype(np.float32)
     classes = tf.one_hot(data[:,0].astype(np.int)-1, 3).numpy()
     x = tf.concat([classes, data[:, 1:]], axis=-1).numpy().astype(np.float32)
