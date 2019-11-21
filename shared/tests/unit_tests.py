@@ -54,3 +54,21 @@ def test_get_continuous_columns():
     x = utils.get_continuous_columns(column_types)
     y = np.array([1,1,0,1,0,0,0,1])
     assert np.min(x==y)
+    
+def test_transform_miss_list():
+    column_types =[
+        {'type': 'positive', 'dim':1},
+        {'type': 'real', 'dim':1},
+        {'type': 'count', 'dim':1},
+        {'type': 'categorical', 'dim':3},
+        {'type': 'categorical', 'dim':2}]
+    miss_list = np.array([
+        [1, 0, 1, 0, 1],
+        [0, 1, 1, 0, 1],
+        [1, 1, 1, 1, 0]])
+    y = np.array([
+        [1, 0, 1, 0, 0, 0, 1, 1],
+        [0, 1, 1, 0, 0, 0, 1, 1],
+        [1, 1, 1, 1, 1, 1, 0, 0]])
+    x = utils.transform_data_miss_list(miss_list, column_types)
+    assert np.min(x==y)

@@ -31,7 +31,10 @@ def hi_vae_random_data_load():
     x4 = tf.one_hot(np.random.randint(0,2,size=rows),2).numpy()
     x5 = np.random.normal(0.5,1,size=(rows,1))
     x = tf.concat([x0,x1,x2,x3,x4,x5], axis=-1).numpy().astype(np.float32)
-    return x, column_types
+    miss_list = utils.transform_data_miss_list(
+        np.random.randint(0, 2, size=(rows,6)),
+        column_types)
+    return x, column_types, miss_list
 
 def hi_vae_wine_data_load():
     column_types=[{'type':'categorical', 'dim':3}] +\
@@ -39,7 +42,10 @@ def hi_vae_wine_data_load():
     data = np.loadtxt('../../data/wine.data', delimiter=',').astype(np.float32)
     classes = tf.one_hot(data[:,0].astype(np.int)-1, 3).numpy()
     x = tf.concat([classes, data[:, 1:]], axis=-1).numpy().astype(np.float32)
-    return utils.transform_data_hi_vae(x, column_types), column_types
+    miss_list = utils.transform_data_miss_list(
+        np.loadtxt('../../data/wine.miss', delimiter=',').astype(np.int32),
+        column_types)
+    return utils.transform_data_hi_vae(x, column_types), column_types, miss_list
 
 test_cases = \
 {
