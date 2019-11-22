@@ -8,7 +8,7 @@ def get_continuous_columns(column_types):
     ids = []
     for column in column_types:
         type_, dim = column['type'], column['dim']
-        if type_ == 'real' or type_ =='positive':
+        if type_ == 'real' or type_ =='pos':
             ids.append(1)
         else:
             ids.extend([0]*dim)
@@ -23,7 +23,7 @@ def transform_data_hi_vae(x, column_types):
         type_, dim = column['type'], column['dim']
         if type_ == 'real':
             fields.append(y[:,i:i+1])
-        elif type_ == 'positive' or type_ == 'count':
+        elif type_ == 'pos' or type_ == 'count':
             fields.append(np.log(y[:,i:i+1]+eps))
         else:
             v = y[:,i:i+1].astype(np.int32)
@@ -49,7 +49,7 @@ def reverse_transform_data_hi_vae(x, column_types):
         type_, dim = column['type'], column['dim']
         if type_ == 'real':
             fields.append(x[:,j:j+1])
-        elif type_ == 'positive' or type_ == 'count':
+        elif type_ == 'pos' or type_ == 'count':
             fields.append(np.exp(x[:,j:j+1]))
         else:
             v = x[:,j:j+dim]

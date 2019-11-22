@@ -8,13 +8,54 @@ import numpy as np
 from tensorflow import keras
 import matplotlib.pyplot as plt
 import copy
-import elbo_calculator as ec
-import train
-import argparse
 import os
 import utils
 from scipy.io import loadmat
 import csv
+
+def read_data(data, column_types):
+    data_complete = []
+    for i in range(np.shape(data)[1]):
+        
+        if column_types[i]['type'] == 'cat':
+            #Get categories
+            cat_data = [int(x) for x in data[:,i]]
+            _, indexes = np.unique(cat_data,return_inverse=True)
+            #Transform categories to a vector of 0:n_categories
+            new_categories = np.arange(int(column_types[i]['dim']))
+            cat_data = new_categories[indexes]
+            #Create one hot encoding for the categories
+            aux = np.zeros([np.shape(data)[0],len(new_categories)])
+            aux[np.arange(np.shape(data)[0]),cat_data] = 1
+            data_complete.append(aux)
+            
+        elif column_types[i]['type'] == 'ordinal':
+            #Get categories
+            cat_data = [int(x) for x in data[:,i]]
+            _, indexes = np.unique(cat_data,return_inverse=True)
+            #Transform categories to a vector of 0:n_categories
+            new_categories = np.arange(int(column_types[i]['dim']))
+            cat_data = new_categories[indexes]
+            #Create thermometer encoding for the categories
+            aux = np.zeros([np.shape(data)[0],1+len(new_categories)])
+            aux[:,0] = 1
+            aux[np.arange(np.shape(data)[0]),1+cat_data] = -1
+            aux = np.cumsum(aux,1)
+            data_complete.append(aux[:,:-1])
+            
+        elif column_types[i]['type'] == 'count':
+            if np.min(data[:,i]) == 0:
+                aux = data[:,i] + 1
+                data_complete.append(np.transpose([aux]))
+            else:
+                data_complete.append(np.transpose([data[:,i]]))
+            
+            
+            
+        else:
+            data_complete.append(np.transpose([data[:,i]]))
+                    
+    return np.concatenate(data_complete,1)
 
 def hi_vae_random_data_load(test_case=None):
     rows = 1000
@@ -22,8 +63,8 @@ def hi_vae_random_data_load(test_case=None):
         {'type': 'real', 'dim':1},
         {'type': 'real', 'dim':1},
         {'type': 'count', 'dim':1},
-        {'type': 'categorical', 'dim':3},
-        {'type': 'categorical', 'dim':2},
+        {'type': 'cat', 'dim':3},
+        {'type': 'cat', 'dim':2},
         {'type': 'real', 'dim':1}]
     x0 = np.random.normal(1,2,size=(rows,1))
     x1 = np.random.normal(0,1,size=(rows,1))
@@ -38,11 +79,12 @@ def hi_vae_random_data_load(test_case=None):
     return x, column_types, miss_list
 
 def hi_vae_wine_data_load(test_case):
-    column_types=[{'type':'categorical', 'dim':3}] +\
-         [{'type': 'positive', 'dim':1}]*12
-    data = np.loadtxt(test_case['data_file'], delimiter=',').astype(np.float32)
-    classes = tf.one_hot(data[:,0].astype(np.int)-1, 3).numpy()
-    x = tf.concat([classes, data[:, 1:]], axis=-1).numpy().astype(np.float32)
+    with open(test_case['data_type_file']) as f:
+        column_types = [{k: v for k, v in row.items()}
+        for row in csv.DictReader(f, skipinitialspace=True)]
+    with open(test_case['data_file'], 'r') as f:
+        data = [[float(x) for x in rec] for rec in csv.reader(f, delimiter=',')]
+        data = np.array(data)
     miss_mask = np.ones(x.shape)
     with open(test_case['miss_file'], 'r') as f:
         missing_positions = [[int(x) for x in rec] for rec in csv.reader(f, delimiter=',')]
@@ -51,7 +93,7 @@ def hi_vae_wine_data_load(test_case):
     miss_list = utils.transform_data_miss_list(
         miss_mask,
         column_types)
-    return utils.transform_data_hi_vae(x, column_types), column_types, miss_list
+    return read_data(data, column_types), column_types, miss_list
 
 test_cases = \
 {
@@ -86,6 +128,8 @@ test_cases = \
         },
         'use_sgd':True,
         'report_frequency':100,
-        'miss_file':
+        'data_type_file': '../../data/wine/data_types.csv',
+        'miss_file': '../../data/wine/missing10_1.csv',
+        'data_file': '../../data/wine/data.csv'
     }
 }

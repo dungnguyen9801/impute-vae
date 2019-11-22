@@ -69,7 +69,7 @@ class model_hi_vae():
             i = 0
             for j, column in enumerate(self.column_types):
                 type_, dim = column['type'], column['dim']
-                if type_ == 'real' or type_ == 'positive':
+                if type_ == 'real' or type_ == 'pos':
                     mu_x, log_sigma_x = output[j]
                     sigma_x = tf.math.exp(log_sigma_x)
                     p = utils.get_gaussian_densities(

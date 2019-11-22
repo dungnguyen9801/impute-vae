@@ -7,11 +7,11 @@ from shared import utils
 
 def test_data_transform():
     column_types =[
-        {'type': 'positive', 'dim':1},
+        {'type': 'pos', 'dim':1},
         {'type': 'real', 'dim':1},
         {'type': 'count', 'dim':1},
-        {'type': 'categorical', 'dim':3},
-        {'type': 'categorical', 'dim':2}]
+        {'type': 'cat', 'dim':3},
+        {'type': 'cat', 'dim':2}]
     x0 = np.exp(np.array([[1],[2],[3]]))
     x1 = np.array([[4],[5],[6]])
     x2 = np.exp(np.array([[10],[11],[12]]))
@@ -31,11 +31,11 @@ def test_reverse_data_transform():
         [np.log(2), 5, np.log(11), 0.1, 0.6, 0.3, 0.6, 0.4],
         [np.log(3), 6, np.log(12), 0.1, 0.2, 0.7, 0.3, 0.7]])
     column_types =[
-        {'type': 'positive', 'dim':1},
+        {'type': 'pos', 'dim':1},
         {'type': 'real', 'dim':1},
         {'type': 'count', 'dim':1},
-        {'type': 'categorical', 'dim':3},
-        {'type': 'categorical', 'dim':2}]
+        {'type': 'cat', 'dim':3},
+        {'type': 'cat', 'dim':2}]
     y = np.array([
         [1, 4, 10, 0, 1],
         [2, 5, 11, 1, 0],
@@ -45,23 +45,23 @@ def test_reverse_data_transform():
 
 def test_get_continuous_columns():
     column_types =[
-        {'type': 'positive', 'dim':1},
+        {'type': 'pos', 'dim':1},
         {'type': 'real', 'dim':1},
         {'type': 'count', 'dim':1},
         {'type': 'real', 'dim':1},
-        {'type': 'categorical', 'dim':3},
-        {'type': 'positive', 'dim':1}]
+        {'type': 'cat', 'dim':3},
+        {'type': 'pos', 'dim':1}]
     x = utils.get_continuous_columns(column_types)
     y = np.array([1,1,0,1,0,0,0,1])
     assert np.min(x==y)
     
 def test_transform_miss_list():
     column_types =[
-        {'type': 'positive', 'dim':1},
+        {'type': 'pos', 'dim':1},
         {'type': 'real', 'dim':1},
         {'type': 'count', 'dim':1},
-        {'type': 'categorical', 'dim':3},
-        {'type': 'categorical', 'dim':2}]
+        {'type': 'cat', 'dim':3},
+        {'type': 'cat', 'dim':2}]
     miss_list = np.array([
         [1, 0, 1, 0, 1],
         [0, 1, 1, 0, 1],

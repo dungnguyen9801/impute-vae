@@ -65,7 +65,7 @@ def get_hi_vae_decoder(column_types, latent_dim, s_dim):
         type_, dim = column['type'], column['dim']
         if type_ == 'count':
             prop_layers.append((keras.layers.Dense(1),))
-        elif type_ == 'real' or type_ == 'positive':
+        elif type_ == 'real' or type_ == 'pos':
             prop_layers.append((keras.layers.Dense(1), keras.layers.Dense(1)))
         else:
             prop_layers.append((keras.layers.Dense(dim, activation='softmax'),))
@@ -76,7 +76,7 @@ def get_hi_vae_decoder(column_types, latent_dim, s_dim):
             [y[:,d:d+1], s_tail],
             axis=-1)
         output.append(list(map(lambda f: f(y_d_s), prop_layers[d])))
-        if type_ == 'real' or type_ == 'positive':
+        if type_ == 'real' or type_ == 'pos':
             output[d][0] = output[d][0] * gamma + beta
             output[d][1] = output[d][1] * gamma
     return keras.models.Model(
