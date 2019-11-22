@@ -14,8 +14,9 @@ import argparse
 import os
 import utils
 from scipy.io import loadmat
+import csv
 
-def hi_vae_random_data_load():
+def hi_vae_random_data_load(test_case=None):
     rows = 1000
     column_types=[
         {'type': 'real', 'dim':1},
@@ -36,14 +37,19 @@ def hi_vae_random_data_load():
         column_types)
     return x, column_types, miss_list
 
-def hi_vae_wine_data_load():
+def hi_vae_wine_data_load(test_case):
     column_types=[{'type':'categorical', 'dim':3}] +\
          [{'type': 'positive', 'dim':1}]*12
-    data = np.loadtxt('../../data/wine.data', delimiter=',').astype(np.float32)
+    data = np.loadtxt(test_case['data_file'], delimiter=',').astype(np.float32)
     classes = tf.one_hot(data[:,0].astype(np.int)-1, 3).numpy()
     x = tf.concat([classes, data[:, 1:]], axis=-1).numpy().astype(np.float32)
+    miss_mask = np.ones(x.shape)
+    with open(test_case['miss_file'], 'r') as f:
+        missing_positions = [[int(x) for x in rec] for rec in csv.reader(f, delimiter=',')]
+        missing_positions = np.array(missing_positions)
+        miss_mask[missing_positions[:,0]-1,missing_positions[:,1]-1] 
     miss_list = utils.transform_data_miss_list(
-        np.loadtxt('../../data/wine.miss', delimiter=',').astype(np.int32),
+        miss_mask,
         column_types)
     return utils.transform_data_hi_vae(x, column_types), column_types, miss_list
 
@@ -79,6 +85,7 @@ test_cases = \
             'seed': 1
         },
         'use_sgd':True,
-        'report_frequency':100
+        'report_frequency':100,
+        'miss_file':
     }
 }
