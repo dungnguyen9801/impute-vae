@@ -19,9 +19,9 @@ test_case = tests.test_cases[test_case_name]
 epochs = test_case['epochs']
 batch_size = test_case['batch_size']
 input_shape = test_case['input_shape']
-x, miss_list, column_types = test_case['dataset_loader'](test_case)
-x = x*(1-miss_list)
-input_dim = x.shape[-1]
+x_miss_list, column_types = test_case['dataset_loader'](test_case)
+x_miss_list = x_miss_list.astype(np.float32)
+input_dim = x_miss_list.shape[-1]
 hidden_dim =3
 latent_dim=2
 s_dim=2
@@ -32,7 +32,7 @@ model = mhv.model_hi_vae(input_dim, hidden_dim, latent_dim, s_dim, column_types)
 start_time = time.time()
 for epoch in range(epochs):
     loss_func = ec.elbo_calculator().get_loss_func_2()
-    loss = train.train_one_random_batch(model, x, optimizer, loss_func, y=None, batch_size=batch_size, options=options)
+    loss = train.train_one_random_batch(model, x_miss_list, optimizer, loss_func, y=None, batch_size=batch_size, options=options)
     if ((epoch + 1) % report_frequency == 0):
         elapsed = time.time()-start_time
         print('epoch %s: loss = %s, elapsed = %s' %(epoch+1, -loss.numpy(), elapsed))

@@ -38,7 +38,8 @@ def transform_data_miss_list(miss_list, column_types):
     rows = tf.shape(miss_list)[0]
     for i, column in enumerate(column_types):
         _, dim = column['type'], column['dim']
-        fields.append(tf.broadcast_to(miss_list[:,i:i+1], (rows, dim)).numpy())
+        #print(rows, dim)
+        fields.append(tf.broadcast_to(miss_list[:,i:i+1], [rows, dim]).numpy())
     return tf.concat(fields, axis=-1).numpy().astype(np.float32)
 
 # x = numpy array

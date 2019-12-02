@@ -24,10 +24,23 @@ def get_bayes_encoder(input_shape, hidden_dim, latent_dim, activation_mu='linear
 def get_hi_vae_encoder(column_types, input_dim, hidden_dim, latent_dim, s_dim):
     eps = 0.0001
     cont_ids = utils.get_continuous_columns(column_types)
-    x = keras.layers.Input(shape=(input_dim,))
-    mu_x = tf.reduce_mean(x*cont_ids, axis=0)
-    sigma_x = tf.sqrt(tf.reduce_mean((x*cont_ids-mu_x)**2, axis=0) + eps) + 1 - cont_ids
-    x_norm = (x-mu_x)/sigma_x
+    x_miss_list = keras.layers.Input(shape=(input_dim,))
+    x = x_miss_list[:, :tf.shape(x_miss_list)[1]//2]
+    miss_list = x_miss_list[:,tf.shape(x)[1]:]
+    x_norm = []
+    x_avg = []
+    x_std = []
+    for i in range(tf.shape(x)[1]):
+        if cont_ids[i]:
+            observed_indices = np.where(miss_list[:, i] == 1)
+            observed = x[observed_indices, i]
+            avg = np.mean(observed)
+            std = np.clip(np.std(observed), eps, None)
+            x_avg.append(avg)
+            x_std.append(std)
+    x_avg = np.array(x_avg)
+    x_std = np.array(x_std)
+    x_norm = (x - x_avg)/x_std *cont_ids * miss_list
     hidden_layer = keras.layers.Dense(hidden_dim, activation='tanh', name='hidden')
     s_probs_layer = keras.layers.Dense(s_dim, activation='softmax', name='s_probs')
     x_s = hidden_layer(x_norm)
@@ -42,12 +55,9 @@ def get_hi_vae_encoder(column_types, input_dim, hidden_dim, latent_dim, s_dim):
     log_sigma_z = log_sigma(x_s)
     mu_z = tf.transpose(mu_z, [1,0,2])
     log_sigma_z = tf.transpose(log_sigma_z, [1,0,2])
-    beta = tf.Variable(0.0)
-    gamma = tf.Variable(1.0)
     return keras.models.Model(
         inputs=x,
-        outputs=(s_probs, mu_z, log_sigma_z, beta+ .0*x[0,0], gamma + .0*x[0,0])
-    )
+        outputs=(s_probs, mu_z, log_sigma_z, x_avg, x_std))
 
 def get_hi_vae_decoder(column_types, latent_dim, s_dim):
     z = keras.layers.Input(shape=(latent_dim,))
@@ -56,6 +66,7 @@ def get_hi_vae_decoder(column_types, latent_dim, s_dim):
     input_dim = len(column_types)
     shared_layer = keras.layers.Dense(input_dim)
     y = shared_layer(z)
+    s_weights = keras.layers.Dense(s_dim, activation='linear')
     s_tail = tf.keras.backend.repeat(
         tf.eye(s_dim),
         tf.shape(z)[0]//s_dim)
@@ -81,7 +92,7 @@ def get_hi_vae_decoder(column_types, latent_dim, s_dim):
             output[d][1] = output[d][1] * gamma
     return keras.models.Model(
         inputs=([z, beta, gamma]),
-        outputs= output
+        outputs= (output, s_weights)
     )
 
 class hi_vae_mixed_gaussian_layer(keras.layers.Layer):

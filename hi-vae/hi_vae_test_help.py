@@ -82,18 +82,22 @@ def hi_vae_wine_data_load(test_case):
     with open(test_case['data_type_file']) as f:
         column_types = [{k: v for k, v in row.items()}
         for row in csv.DictReader(f, skipinitialspace=True)]
+    for i in range(len(column_types)):
+        column_types[i]['dim'] = int(column_types[i]['dim'])
     with open(test_case['data_file'], 'r') as f:
         data = [[float(x) for x in rec] for rec in csv.reader(f, delimiter=',')]
         data = np.array(data)
-    miss_mask = np.ones(x.shape)
+    miss_mask = np.ones(data.shape)
     with open(test_case['miss_file'], 'r') as f:
         missing_positions = [[int(x) for x in rec] for rec in csv.reader(f, delimiter=',')]
         missing_positions = np.array(missing_positions)
-        miss_mask[missing_positions[:,0]-1,missing_positions[:,1]-1] 
+        miss_mask[missing_positions[:,0]-1,missing_positions[:,1]-1] = 0
     miss_list = utils.transform_data_miss_list(
-        miss_mask,
+        miss_mask.astype(np.int32),
         column_types)
-    return read_data(data, column_types), column_types, miss_list
+    return tf.concate(
+        [read_data(data, column_types), miss_list],
+        axis = -1).numpy(), column_types
 
 test_cases = \
 {
@@ -129,7 +133,7 @@ test_cases = \
         'use_sgd':True,
         'report_frequency':100,
         'data_type_file': '../../data/wine/data_types.csv',
-        'miss_file': '../../data/wine/missing10_1.csv',
+        'miss_file': '../../data/wine/Missing10_10.csv',
         'data_file': '../../data/wine/data.csv'
     }
 }

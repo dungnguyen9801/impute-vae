@@ -54,16 +54,18 @@ class model_hi_vae():
 
     def get_func_log_p_xz(self):
         def func(zs, x):
+            x_miss_list = x
+            x = x_miss_list[: tf.shape(x_miss_list)[1]//2]
             zs, s_probs, beta, gamma = zs
             L = tf.shape(zs)[1].numpy()
             s_dim = tf.shape(s_probs)[-1]
             batch = len(s_probs)
-            output = self.decoder([
+            output, s_weights = self.decoder([
                 tf.reshape(zs,(-1, zs.shape[-1])),
                 beta,
                 gamma])
             p_z = utils.get_gaussian_densities(
-                tf.reshape(zs, [s_dim, batch, -1]),0,1)
+                tf.reshape(zs, [s_dim, batch, -1]), s_weights(s_probs),1)
             p_z = tf.math.reduce_sum(p_z, axis=-1) 
             p_x_z = 0
             i = 0
