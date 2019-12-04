@@ -37,5 +37,14 @@ def test_hi_vae_encoder():
         [1, 1, 1, 1, 1, 1, 0, 0]])
     miss_list = utils.transform_data_miss_list(miss_list, column_types)
 
-    x_miss_list = np.concat([x, miss_list], axis=-1)
+    x_miss_list = np.concatenate([x, miss_list], axis=-1)
+    assert(x_miss_list.shape[1] == 2*x.shape[1])
+    
+    input_dim = x.shape[1]
+    hidden_dim = 4
+    latent_dim = 3
+    s_dim = 2
+    model = mhv.model_hi_vae(input_dim, hidden_dim, latent_dim, s_dim, column_types)
+    print(mode.encoder.layers)
+    assert(True)
     
