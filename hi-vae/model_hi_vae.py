@@ -68,7 +68,7 @@ class model_hi_vae():
             p_z = utils.get_gaussian_densities(
                 tf.reshape(zs, [-1]), 
                 tf.reshape(tf.broadcast_to(
-                    tf.reshape(s_component_means, [-1, 1]), [s_dim, np.prod(tf.shape(zs))]),
+                    tf.reshape(s_component_means, [-1, 1]), [s_dim, np.prod(tf.shape(zs))])),
                 1)
             p_z = tf.reshape(p_z, [s_dim, s_dim, -1])
             p_z = tf.math.reduce_sum(p_z, axis=[1,2])/s_dim 
@@ -105,8 +105,8 @@ class model_hi_vae():
                     p = tf.math.reduce_sum(p, axis=-1)
                     p_x_z = p_x_z + p
                 i += dim
-            return tf.math.reduce_sum(tf.transpose(s_probs) * p_x_z)/L +
-                     tf.math.reduce_sum(tf.transpose(s_probs) * p_z))/L
+            return tf.math.reduce_sum(tf.transpose(s_probs) * p_x_z)/L +\
+                     tf.math.reduce_sum(tf.transpose(s_probs) * p_z)/L
         return func
 
     def get_func_log_q_z_x(self):
