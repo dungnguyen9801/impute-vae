@@ -7,7 +7,7 @@ import sys
 sys.path.append('../')
 from shared import utils
 
-def batch_normalization(x, miss_list, column_types):
+def get_batch_normalization(x, miss_list, column_types):
     eps = 0.0001
     cont_ids = utils.get_continuous_columns(column_types)
     x_avg = []
@@ -28,14 +28,20 @@ def batch_normalization(x, miss_list, column_types):
     x_norm = (x - x_avg)/x_std * miss_list
     return x_norm, x_avg, x_std
 
-def hidden(graph, hidden_dim, x_norm):
+def get_x_hidden(graph, hidden_dim, x_norm):
     if not 'x_hidden' in graph:
-        graph['x_hidden'] = keras.layers.Dense(hidden_dim, activation='tanh', name='x_hidden')
+        graph['x_hidden'] = keras.layers.Dense(
+            hidden_dim,
+            activation='tanh',
+            name='x_hidden')
     return graph['x_hidden'](x_norm)
 
-def s_probabilities(graph, x_hidden, s_dim):
-    if not 's_probs' in graph:
-        graph['s_probs_layer'] = keras.layers.Dense(s_dim, activation='softmax', name='s_probs')
+def get_s_probs(graph, x_hidden, s_dim):
+    if not 's_probs_layer' in graph:
+        graph['s_probs_layer'] = keras.layers.Dense(
+            s_dim,
+            activation='softmax',
+            name='s_probs_layer')
     return graph['s_probs_layer'](x_hidden)
 
 def attach_s_vectors(x_hidden, s_dim):
@@ -45,7 +51,7 @@ def attach_s_vectors(x_hidden, s_dim):
     x_s = tf.concat([x_s, id_mat_batch], axis=-1)
     return x_s
 
-def z_parameters(graph, x_s, latent_dim):
+def get_z_parameters(graph, x_s, latent_dim):
     if 'mu_z' not in graph:
         graph['mu_z'] = \
             keras.layers.Dense(latent_dim, activation='linear', name='mu_z')
@@ -55,7 +61,7 @@ def z_parameters(graph, x_s, latent_dim):
     return tf.transpose(graph['mu_z'](x_s), [1,0,2]), \
             tf.transpose(graph['log_sigma_z'](x_s), [1,0,2])
 
-def sample_z(mu_z, log_sigma_z, options=None):
+def get_z_samples(mu_z, log_sigma_z, options=None):
     sigma_z = tf.math.exp(log_sigma_z)
     if not options:
         L = 100
@@ -69,12 +75,12 @@ def sample_z(mu_z, log_sigma_z, options=None):
     eps = np.random.normal(0,1, size = (L, s_dim, batch, z_dim))
     return tf.transpose(eps*sigma_z + mu_z, [1,0,2,3])
 
-def y_decode(graph, z_samples, input_dim):
+def get_y_decode(graph, z_samples, input_dim):
     if graph.get('y_shared_layer', None) == None:
         graph['y_shared_layer'] = keras.layers.Dense(input_dim, name='y_decode')
     return graph['y_shared_layer'](z_samples)
 
-def component_likelihood_parameters(graph, y, s_dim):
+def get_predict_parameters(graph, y, s_dim):
     s_tail = tf.keras.backend.repeat(
         tf.eye(s_dim),
         tf.shape(z)[0]//s_dim)
@@ -102,15 +108,15 @@ def component_likelihood_parameters(graph, y, s_dim):
 def get_hi_vae_encoder(graph, column_types, input_dim, hidden_dim, latent_dim, s_dim, options=None):
     x = keras.layers.Input(shape=(input_dim,))
     miss_list = keras.layers.Input(shape=(input_dim,))
-    x_norm, _, x_avg, x_std = batch_normalization(x, miss_list, column_types)
-    x_hidden = hidden(graph, hidden_dim, x_norm)
-    s_probs = s_probabilities(graph, x_hidden,s_dim)
+    x_norm, _, x_avg, x_std = get_batch_normalization(x, miss_list, column_types)
+    x_hidden = get_x_hidden(graph, hidden_dim, x_norm)
+    s_probs = get_s_probs(graph, x_hidden,s_dim)
     x_s = attach_s_vectors(x_hidden, s_dim) 
-    mu_z, log_sigma_z = z_parameters(graph, x_s, latent_dim)
-    z_samples = sample_z(graph, mu_z, log_sigma_z)
+    mu_z, log_sigma_z = get_z_parameters(graph, x_s, latent_dim)
+    z_samples = get_z_samples(graph, mu_z, log_sigma_z)
 
     #decoder
-    y_decoded = y_decode(graph, z_samples, input_dim)
+    y_decode = get_y_decode(graph, z_samples, input_dim)
 
     return keras.models.Model(
         inputs=x_miss_list,
