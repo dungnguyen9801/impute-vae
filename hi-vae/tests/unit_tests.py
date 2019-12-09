@@ -43,6 +43,48 @@ def test_batch_normalization_no_miss():
     assert(np.max(np.abs(x_avg - x_avg_expected)) < eps)
     assert(np.max(np.abs(x_std - x_std_expected)) < eps)
 
+def test_batch_normalization_with_miss():
+    column_types =[
+        {'type': 'cat', 'dim':3},
+        {'type': 'real', 'dim':1},
+        {'type': 'count', 'dim':1},
+        {'type': 'pos', 'dim':1},
+        {'type': 'cat', 'dim':2}]
+    x0 = np.array([[0],[1],[2]])
+    x1 = np.array([[4],[5],[6]])
+    x2 = np.exp(np.array([[10],[11],[12]]))
+    x3 = np.exp(np.array([[1],[2],[3]]))
+    x4 = np.array([[1],[0],[1]])
+    x = np.concatenate([x0,x1,x2,x3,x4], axis=-1)
+    y = np.array([
+        [1, 0, 0, 4, 10, 1, 0, 1],
+        [0, 1, 0, 5, 11, 2, 1, 0],
+        [0, 0, 1, 6, 12, 3, 0, 1]])
+    x = utils.transform_data_hi_vae(x, column_types).astype(np.int32)
+    assert(np.min(x==y))
+
+    miss_list = np.array([
+        [1, 0, 1, 1, 0],
+        [0, 1, 1, 1, 0],
+        [1, 1, 1, 0, 0]]
+    )
+    miss_list = utils.transform_data_miss_list(miss_list, column_types)
+    x_norm, x_avg, x_std = hvf.get_batch_normalization(x, miss_list,column_types)
+
+    x_norm_expected = np.array([
+        [1., 0., 0., 0., 10., -1., 0., 0.],
+        [0., 0., 0., -1., 11., 1., 0., 0.],
+        [0., 0., 1., 1., 12., 0., 0., 0.]])
+    
+    x_avg_expected = np.array([0., 0., 0., 5.5, 0., 1.5, 0., 0.])
+    x_std_expected = np.array([1., 1., 1., 0.5, 1., 0.5, 1., 1.])
+
+    eps = 1e-5
+    assert(np.max(np.abs(x_norm - x_norm_expected)) < eps)
+    assert(np.max(np.abs(x_avg - x_avg_expected)) < eps)
+    assert(np.max(np.abs(x_std - x_std_expected)) < eps)
+
+
 def test_hidden():
     graph = {}
     hidden_dim = 3
@@ -133,3 +175,26 @@ def test_get_z_samples():
     eps = 0.05
     assert(np.max(np.abs(z_samples_mean-mu_z)) < eps)
     assert(np.max(np.abs(z_samples_std-np.exp(log_sigma_z))) < eps)
+
+def test_get_y_decode():
+    graph = {}
+    input_dim = 4
+    s_dim, L, batch, latent_dim = 2,4,5,3
+    z_samples = np.random.normal(2,1,size=(s_dim,L,batch,latent_dim))\
+        .astype(np.float32)
+    if graph.get('y_shared_layer', None) == None:
+        graph['y_shared_layer'] = tf.keras.layers.Dense(input_dim, name='y_decode')
+    layer = graph['y_shared_layer']
+    y_decode = hvf.get_y_decode(graph, z_samples, input_dim).numpy()
+    assert(y_decode.shape == ((s_dim,L,batch,input_dim)))
+
+def test_get_y_decode_2():
+    graph = {}
+    input_dim = 4
+    s_dim, L, batch, latent_dim = 2,4,5,3
+    z_samples = np.random.normal(10000,1,size=(s_dim,L,batch,latent_dim))\
+        .astype(np.float32)
+    y_decode = hvf.get_y_decode(graph, z_samples, input_dim).numpy()
+    assert(np.max(y_decode) <= 1.)
+    assert(np.min(y_decode) >= -1.)
+    

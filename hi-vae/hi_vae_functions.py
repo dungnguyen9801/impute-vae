@@ -76,7 +76,10 @@ def get_z_samples(mu_z, log_sigma_z, options=None):
 
 def get_y_decode(graph, z_samples, input_dim):
     if graph.get('y_shared_layer', None) == None:
-        graph['y_shared_layer'] = keras.layers.Dense(input_dim, name='y_decode')
+        graph['y_shared_layer'] = keras.layers.Dense(
+            input_dim,
+            activation='tanh',
+            name='y_decode')
     return graph['y_shared_layer'](z_samples)
 
 def get_predict_parameters(graph, y, s_dim):
