@@ -49,7 +49,7 @@ def attach_s_vectors(x_hidden, s_dim):
     id_mat = tf.stack([tf.eye(s_dim)], axis=0)
     id_mat_batch = tf.tile(id_mat, tf.stack([tf.shape(x_s)[0], 1, 1], name='stack_x'))
     x_s = tf.concat([x_s, id_mat_batch], axis=-1)
-    return x_s
+    return tf.transpose(x_s, [1,0,2])
 
 def get_z_parameters(graph, x_s, latent_dim):
     if 'mu_z' not in graph:
@@ -58,8 +58,7 @@ def get_z_parameters(graph, x_s, latent_dim):
     if 'log_sigma_z' not in graph:
         graph['log_sigma_z'] = \
             keras.layers.Dense(latent_dim, activation='linear', name='log_sigma_z')
-    return tf.transpose(graph['mu_z'](x_s), [1,0,2]), \
-            tf.transpose(graph['log_sigma_z'](x_s), [1,0,2])
+    return graph['mu_z'](x_s), graph['log_sigma_z'](x_s)
 
 def get_z_samples(mu_z, log_sigma_z, options=None):
     sigma_z = tf.math.exp(log_sigma_z)

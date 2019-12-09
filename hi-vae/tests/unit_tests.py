@@ -28,7 +28,7 @@ def test_batch_normalization_no_miss():
     assert(np.min(x==y))
 
     miss_list = utils.transform_data_miss_list(np.ones((3,5)), column_types)
-    x_norm, x_avg, x_std = hvf.batch_normalization(x, miss_list,column_types)
+    x_norm, x_avg, x_std = hvf.get_batch_normalization(x, miss_list,column_types)
 
     x_norm_expected = np.array([
         [1., 0., 0., -1.22474487, 10., -1.224744870, 0., 1.],
@@ -42,26 +42,6 @@ def test_batch_normalization_no_miss():
     assert(np.max(np.abs(x_norm - x_norm_expected)) < eps)
     assert(np.max(np.abs(x_avg - x_avg_expected)) < eps)
     assert(np.max(np.abs(x_std - x_std_expected)) < eps)
-    
-
-def test_attach_s_vectors_1():
-    x_hidden = tf.constant([[4.,2,3]])
-    s_dim = 3
-    x_s = hvf.attach_s_vectors(x_hidden, s_dim).numpy()
-    x_s_expected = np.array([
-        [4.,2,3,1,0,0], 
-        [4.,2,3,0,1,0],
-        [4.,2,3,0,0,1]])
-    assert(np.min(x_s == x_s_expected))
-
-def test_attach_s_vectors_2():
-    x_hidden = tf.constant([[3.,5],[2,6]])
-    s_dim = 2
-    x_s = hvf.attach_s_vectors(x_hidden, s_dim).numpy()
-    x_s_expected = np.array([
-        [[3.,5,1,0], [3.,5,0,1]],
-        [[2.,6,1,0], [2.,6,0,1]]])
-    assert(np.min(x_s == x_s_expected))
 
 def test_hidden():
     graph = {}
@@ -105,3 +85,51 @@ def test_s_probs():
     s_probs_expected = tf.nn.softmax(tf.matmul(x_hidden, w) + b).numpy()
     eps = 1e-5
     assert(np.max(np.abs(s_probs_expected - s_probs)) < eps)
+
+def test_attach_s_vectors_1():
+    x_hidden = tf.constant([[4.,2,3]])
+    s_dim = 3
+    x_s = hvf.attach_s_vectors(x_hidden, s_dim).numpy()
+    x_s_expected = np.array([
+        [[4.,2,3,1,0,0]], 
+        [[4.,2,3,0,1,0]],
+        [[4.,2,3,0,0,1]]])
+    assert(np.min(x_s == x_s_expected))
+
+def test_attach_s_vectors_2():
+    x_hidden = tf.constant([[3.,5],[2,6]])
+    s_dim = 2
+    x_s = hvf.attach_s_vectors(x_hidden, s_dim).numpy()
+    x_s_expected = np.array([
+        [[3.,5,1,0], [2.,6,1,0]],
+        [[3.,5,0,1], [2.,6,0,1]]])
+    assert(np.min(x_s == x_s_expected))
+
+def test_get_z_parameters():
+    graph = {}
+    latent_dim = 2
+    graph['mu_z'] = \
+        tf.keras.layers.Dense(latent_dim, activation='linear', name='mu_z')
+    graph['log_sigma_z'] = \
+        tf.keras.layers.Dense(latent_dim, activation='linear', name='log_sigma_z')
+    x_s = np.array([
+        [[3.,5,2,1,0], [2.,7,6,1,0]],
+        [[3.,5,2,0,1], [2.,7,6,0,1]]])
+    s_dim, batch, _ = x_s.shape
+    mu_z, log_sigma_z = hvf.get_z_parameters(graph, x_s, latent_dim)
+    assert(mu_z.numpy().shape == (s_dim, batch, latent_dim))
+    assert(log_sigma_z.numpy().shape == (s_dim, batch, latent_dim))
+
+def test_get_z_samples():
+    s_dim, batch, z_dim = 2,5,3
+    mu_z = np.random.normal(5,1, (s_dim, batch,z_dim))
+    log_sigma_z = np.random.normal(np.log(1),0.1, (s_dim, batch,z_dim))
+    L = 10000
+    options = {'length' : L,'seed' : 1}
+    z_samples = hvf.get_z_samples(mu_z, log_sigma_z, options)
+    assert(z_samples.numpy().shape == (s_dim, L, batch, z_dim))
+    z_samples_mean = tf.math.reduce_mean(z_samples, axis=1).numpy()
+    z_samples_std = tf.math.reduce_std(z_samples, axis=1).numpy()
+    eps = 0.05
+    assert(np.max(np.abs(z_samples_mean-mu_z)) < eps)
+    assert(np.max(np.abs(z_samples_std-np.exp(log_sigma_z))) < eps)
