@@ -7,11 +7,9 @@ import sys
 sys.path.append('../')
 from shared import utils
 
-def batch_normalization(x_miss_list, column_types):
+def batch_normalization(x, miss_list, column_types):
     eps = 0.0001
     cont_ids = utils.get_continuous_columns(column_types)
-    x = x_miss_list[:, :tf.shape(x_miss_list)[1]//2]
-    miss_list = x_miss_list[:,tf.shape(x)[1]:]
     x_avg = []
     x_std = []
     for i in range(tf.shape(x)[1]):
@@ -22,10 +20,13 @@ def batch_normalization(x_miss_list, column_types):
             std = np.clip(np.std(observed), eps, None)
             x_avg.append(avg)
             x_std.append(std)
+        else:
+            x_avg.append(0.0)
+            x_std.append(1.0)
     x_avg = np.array(x_avg)
     x_std = np.array(x_std)
-    x_norm = (x - x_avg)/x_std *cont_ids * miss_list
-    return x_norm, miss_list, x_avg, x_std
+    x_norm = (x - x_avg)/x_std * miss_list
+    return x_norm, x_avg, x_std
 
 def hidden(graph, hidden_dim, x_norm):
     if not 'x_hidden' in graph:
@@ -99,8 +100,9 @@ def component_likelihood_parameters(graph, y, s_dim):
             output[d][1] = output[d][1] * gamma
 
 def get_hi_vae_encoder(graph, column_types, input_dim, hidden_dim, latent_dim, s_dim, options=None):
-    x_miss_list = keras.layers.Input(shape=(input_dim * 2,))
-    x_norm, _, x_avg, x_std = batch_normalization(x_miss_list, column_types)
+    x = keras.layers.Input(shape=(input_dim,))
+    miss_list = keras.layers.Input(shape=(input_dim,))
+    x_norm, _, x_avg, x_std = batch_normalization(x, miss_list, column_types)
     x_hidden = hidden(graph, hidden_dim, x_norm)
     s_probs = s_probabilities(graph, x_hidden,s_dim)
     x_s = attach_s_vectors(x_hidden, s_dim) 
