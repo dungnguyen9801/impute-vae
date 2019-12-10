@@ -82,30 +82,44 @@ def get_y_decode(graph, z_samples, input_dim):
             name='y_decode')
     return graph['y_shared_layer'](z_samples)
 
-def get_predict_parameters(graph, y, s_dim):
+def get_predict_parameters(graph, y, s_dim, beta, gamma):
+    y = tf.reshape(y, [-1, tf.shape[y][-1]])
     s_tail = tf.keras.backend.repeat(
         tf.eye(s_dim),
-        tf.shape(z)[0]//s_dim)
-    s_tail = tf.reshape(s_tail, (-1, s_dim))
-    prop_layers = []
-    for column in column_types:
+        tf.shape(y)[0]//s_dim)
+    predict_params = []
+    if not 'predict_params_layers' in graph:
+        graph['predict_params_layers'] = [None] * len(column_types)
+    predict_params_layers = graph['predict_params_layers']
+    d = 0
+    for i, column in enumarate(column_types):
         type_, dim = column['type'], column['dim']
-        if type_ == 'count':
-            prop_layers.append((keras.layers.Dense(1),))
-        elif type_ == 'real' or type_ == 'pos':
-            prop_layers.append((keras.layers.Dense(1), keras.layers.Dense(1)))
-        else:
-            prop_layers.append((keras.layers.Dense(dim, activation='softmax'),))
-    output = []
-    for d, column in enumerate(column_types):
-        type_, dim = column['type'], column['dim']
-        y_d_s = tf.concat(
-            [y[:,d:d+1], s_tail],
+        y_i_s = tf.concat(
+            [y[:,i:i+1], s_tail],
             axis=-1)
-        output.append(list(map(lambda f: f(y_d_s), prop_layers[d])))
-        if type_ == 'real' or type_ == 'pos':
-            output[d][0] = output[d][0] * gamma + beta
-            output[d][1] = output[d][1] * gamma
+        if type_ == 'count':
+            if not predict_params_layers[i]:
+                predict_params_layers[i] = keras.layers.Dense(1)
+            predict_params.append(predict_params_layers[i](y_i_s))
+        elif type_ == 'real' or type_ == 'pos':
+            if not predict_params_layers[i]:
+                predict_params_layers[i] = (
+                    keras.layers.Dense(1), 
+                    keras.layers.Dense(1)
+                )
+            predict_params.append((
+                predict_params_layers[i][0](y_i_s) * gamma[d] + beta[d],
+                predict_params_layers[i][1](y_i_s) * gamma[d]
+            ))
+        else:
+            if not predict_params_layers[i]:
+                predict_params_layers[i] = keras.layers.Dense(dim, activation='softmax')
+            predict_params.append(predict_params_layers[i](y_i_s))
+        d += dim
+    return predict_params
+
+def get_elbo_loss(graph, z_samples, x, predict_params)
+
 
 def get_hi_vae_encoder(graph, column_types, input_dim, hidden_dim, latent_dim, s_dim, options=None):
     x = keras.layers.Input(shape=(input_dim,))
@@ -119,42 +133,8 @@ def get_hi_vae_encoder(graph, column_types, input_dim, hidden_dim, latent_dim, s
 
     #decoder
     y_decode = get_y_decode(graph, z_samples, input_dim)
+    predict_params = get_predict_parameters(graph, y_decode, s_dim, x_avg, x_std)
 
     return keras.models.Model(
         inputs=x_miss_list,
         outputs=(s_probs, mu_z, log_sigma_z, x_avg, x_std))
-
-def get_hi_vae_decoder(column_types, latent_dim, s_dim):
-    z = keras.layers.Input(shape=(latent_dim,))
-    beta = keras.layers.Input(shape=(None,))
-    gamma = keras.layers.Input(shape=(None,))
-    input_dim = len(column_types)
-    shared_layer = keras.layers.Dense(input_dim)
-    y = shared_layer(z)
-    s_component_means = tf.Variable([1.0] *s_dim, 's_component_means')
-    s_tail = tf.keras.backend.repeat(
-        tf.eye(s_dim),
-        tf.shape(z)[0]//s_dim)
-    s_tail = tf.reshape(s_tail, (-1, s_dim))
-    prop_layers = []
-    for column in column_types:
-        type_, dim = column['type'], column['dim']
-        if type_ == 'count':
-            prop_layers.append((keras.layers.Dense(1),))
-        elif type_ == 'real' or type_ == 'pos':
-            prop_layers.append((keras.layers.Dense(1), keras.layers.Dense(1)))
-        else:
-            prop_layers.append((keras.layers.Dense(dim, activation='softmax'),))
-    output = []
-    for d, column in enumerate(column_types):
-        type_, dim = column['type'], column['dim']
-        y_d_s = tf.concat(
-            [y[:,d:d+1], s_tail],
-            axis=-1)
-        output.append(list(map(lambda f: f(y_d_s), prop_layers[d])))
-        if type_ == 'real' or type_ == 'pos':
-            output[d][0] = output[d][0] * gamma + beta
-            output[d][1] = output[d][1] * gamma
-    return keras.models.Model(
-        inputs=([z, beta, gamma]),
-        outputs= (output, s_component_means + 0.0 * s_component_means ** 2))
