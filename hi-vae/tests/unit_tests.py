@@ -3,9 +3,8 @@ import numpy as np
 import tensorflow as tf
 sys.path.append('../')
 sys.path.append('../../')
-from shared import utils
+from utils import hi_vae_utils as utils
 import hi_vae_functions as hvf
-import pytest
 
 def test_batch_normalization_no_miss():
     column_types =[

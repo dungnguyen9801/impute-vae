@@ -5,7 +5,7 @@ from tensorflow import keras
 import matplotlib.pyplot as plt
 import sys
 sys.path.append('../')
-from shared import utils
+from utils import hi_vae_utils as utils
 
 def get_batch_normalization(x, miss_list, column_types):
     eps = 0.0001
@@ -194,11 +194,9 @@ def get_elbo_loss(graph, z_samples, mu_z, log_sigma_z, x, miss_list, x_params, c
     log_p_z = tf.math.reduce_sum(log_p_z, axis=-1)
     return tf.math.reduce_sum(tf.matmul(s_probs, log_p_z))
 
-
-
 def get_hi_vae_encoder(graph, column_types, input_dim, hidden_dim, z_dim, s_dim, options=None):
     x = keras.layers.Input(shape=(input_dim,))
-    miss_list = keras.layers.Input(shape=E_{(input_dim,))
+    miss_list = keras.layers.Input(shape=(input_dim,))
     x_norm, _, x_avg, x_std = get_batch_normalization(x, miss_list, column_types)
     x_hidden = get_x_hidden(graph, hidden_dim, x_norm)
     s_probs = get_s_probs(graph, x_hidden,s_dim)
