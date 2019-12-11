@@ -1,6 +1,0 @@
-elbo(x,z,a1,a2,b1,b2,sigma1,sigma2)= 1/2*a1^2*x^2/sigma1^2 - 1/2*a2^2*z^2/sigma2^2 - 1/2*z^2 + a1*b1*x/sigma1^2 - a2*b2*z/sigma2^2 - a1*x*z/sigma1^2 + a2*x*z/sigma2^2 + 1/2*b1^2/sigma1^2 - 1/2*b2^2/sigma2^2 + b2*x/sigma2^2 - 1/2*x^2/sigma2^2 - b1*z/sigma1^2 + 1/2*z^2/sigma1^2 + log(sigma1) - log(sigma2) + log(1/2*sqrt(2)/sqrt(pi))
-
-elbo_x(x,a1,a2,b1,b2,sigma1,sigma2)= -1/2*a1^2*x^2 - 1/2*a1^2*a2^2*x^2/sigma2^2 - a1*b1*x - a1*a2^2*b1*x/sigma2^2 - 1/2*b1^2 - 1/2*sigma1^2 - 1/2*a2^2*b1^2/sigma2^2 - 1/2*a2^2*sigma1^2/sigma2^2 - a1*a2*b2*x/sigma2^2 + a1*a2*x^2/sigma2^2 - a2*b1*b2/sigma2^2 + a2*b1*x/sigma2^2 - 1/2*b2^2/sigma2^2 + b2*x/sigma2^2 - 1/2*x^2/sigma2^2 + log(sigma1) - log(sigma2) + log(1/2*sqrt(2)/sqrt(pi)) + 1/2
-
-
-F(x,a1,a2,b1,b2,sigma1,sigma2) = -a1^2 - 1/2*b1^2 - 1/2*sigma1^2 - a1^2*a2^2/sigma2^2 - 1/2*a2^2*b1^2/sigma2^2 - 1/2*a2^2*sigma1^2/sigma2^2 - a2*b1*b2/sigma2^2 + 2*a1*a2/sigma2^2 - 1/2*b2^2/sigma2^2 - 1/sigma2^2 + log(sigma1) - log(sigma2) + log(1/2*sqrt(2)/sqrt(pi)) + 1/2

@@ -30,7 +30,7 @@ test_cases = \
 {
     'frey1':
     {
-        'epochs': 2000000,
+        'iters': 2000000,
         'batch_size': 10,
         'input_shape': None,
         'model_dims': (256,2,256),
@@ -46,7 +46,7 @@ test_cases = \
     },
     'normal1':
     {
-        'epochs': 10000,
+        'iters': 10000,
         'batch_size': 32,
         'input_shape': (4000,1),
         'dataset_loader': load_normal,
@@ -58,13 +58,13 @@ test_cases = \
             'scale': np.sqrt(2.0)
         },
         'use_sgd':False,
-        'report_frequency': 100
+        'report_frequency': 1000
     }
 }
 
 def run_test(test_case_name):
     test_case = test_cases[test_case_name]
-    epochs = test_case['epochs']
+    iters = test_case['iters']
     batch_size = test_case['batch_size']
     input_shape = test_case['input_shape']
     x = test_case['dataset_loader'](input_shape, test_case.get('options'))
@@ -80,13 +80,14 @@ def run_test(test_case_name):
     optimizer = tf.keras.optimizers.Adamax()
     options = test_case.get('options')
     report_frequency=test_case.get('report_frequency',1)
-    if not test_case.get('use_sgd'):
-        batch_size = len(x)
-    for epoch in range(epochs):
-        loss_func = ec.elbo_calculator().get_loss_func()
-        loss = train.train_one_epoch(model, x, optimizer, loss_func, y=None, batch_size=batch_size, options=options)
-        if ((epoch + 1) % report_frequency == 0):
-            print('epoch %s: loss = %s' %(epoch+1, -loss.numpy()))
-            model.encoder.save('%s_encoder.h5' % test_case_name)
-            model.decoder.save('%s_decoder.h5' % test_case_name)
-    return model
+    for iter_ in range(iters):
+        loss_func = ec.elbo_calculator().get_loss_func_2()
+        loss = train.train_one_random_batch(model, x, optimizer, loss_func, y=None, batch_size=batch_size, options=options)
+        if ((iter_ + 1) % report_frequency == 0):
+            print('iter %s: loss = %s' %(iter_+1, -loss.numpy()))
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("test", help="test case name", type=str)
+    args = parser.parse_args()
+    run_test(args.test)

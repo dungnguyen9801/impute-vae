@@ -31,28 +31,21 @@ class model_normal_simple():
             return eps * sigma_z + mu_z
         return func
 
-    def get_func_log_p_z(self):
-        def func(zs):
-            return -zs**2/2 - 0.5 * tf.math.log(2*np.pi)
-        return func
-
     def get_trainable_variables(self):
         return [self.encoder.trainable_variables, self.decoder.trainable_variables]
 
     def get_func_log_q_z_x(self):
         def func(zs, x):
             mu_z, sigma_z = self.encoder(x)
-            return utils.get_gaussian_densities(zs, mu_z, sigma_z)
+            return utils.get_gaussian_densities(zs, mu_z, sigma_z)/len(zs)
         return func
 
-    def get_func_log_p_x_z(self):
+    def get_func_log_p_xz(self):
         def func(zs, x):
             mu_x, sigma_x = self.decoder(tf.reshape(zs,(-1, 1)))
             mu_x = tf.reshape(mu_x, (-1, *x.shape))
             sigma_x = tf.reshape(sigma_x,(-1, *x.shape))
-            return utils.get_gaussian_densities(x, mu_x, sigma_x)
+            return (utils.get_gaussian_densities(x, mu_x, sigma_x) + 
+                tf.math.reduce_sum(utils.get_gaussian_densities(zs,0,1)))/len(zs)
         return func
-
-    def get_trainable_variables(self):
-        return [self.encoder.trainable_variables, self.decoder.trainable_variables]
 
