@@ -149,18 +149,18 @@ def test_attach_s_vectors_2():
 
 def test_get_z_parameters():
     graph = {}
-    latent_dim = 2
+    z_dim = 2
     graph['mu_z'] = \
-        tf.keras.layers.Dense(latent_dim, activation='linear', name='mu_z')
+        tf.keras.layers.Dense(z_dim, activation='linear', name='mu_z')
     graph['log_sigma_z'] = \
-        tf.keras.layers.Dense(latent_dim, activation='linear', name='log_sigma_z')
+        tf.keras.layers.Dense(z_dim, activation='linear', name='log_sigma_z')
     x_s = np.array([
         [[3.,5,2,1,0], [2.,7,6,1,0]],
         [[3.,5,2,0,1], [2.,7,6,0,1]]])
     s_dim, batch, _ = x_s.shape
-    mu_z, log_sigma_z = hvf.get_z_parameters(graph, x_s, latent_dim)
-    assert(mu_z.numpy().shape == (s_dim, batch, latent_dim))
-    assert(log_sigma_z.numpy().shape == (s_dim, batch, latent_dim))
+    mu_z, log_sigma_z = hvf.get_z_parameters(graph, x_s, z_dim)
+    assert(mu_z.numpy().shape == (s_dim, batch, z_dim))
+    assert(log_sigma_z.numpy().shape == (s_dim, batch, z_dim))
 
 def test_get_z_samples():
     s_dim, batch, z_dim = 2,5,3
@@ -179,8 +179,8 @@ def test_get_z_samples():
 def test_get_y_decode():
     graph = {}
     input_dim = 4
-    s_dim, L, batch, latent_dim = 2,4,5,3
-    z_samples = np.random.normal(2,1,size=(s_dim,L,batch,latent_dim))\
+    s_dim, L, batch, z_dim = 2,4,5,3
+    z_samples = np.random.normal(2,1,size=(s_dim,L,batch,z_dim))\
         .astype(np.float32)
     if graph.get('y_shared_layer', None) == None:
         graph['y_shared_layer'] = tf.keras.layers.Dense(input_dim, name='y_decode')
@@ -191,8 +191,8 @@ def test_get_y_decode():
 def test_get_y_decode_2():
     graph = {}
     input_dim = 4
-    s_dim, L, batch, latent_dim = 2,4,5,3
-    z_samples = np.random.normal(10000,1,size=(s_dim,L,batch,latent_dim))\
+    s_dim, L, batch, z_dim = 2,4,5,3
+    z_samples = np.random.normal(10000,1,size=(s_dim,L,batch,z_dim))\
         .astype(np.float32)
     y_decode = hvf.get_y_decode(graph, z_samples, input_dim).numpy()
     assert(np.max(y_decode) <= 1.)
