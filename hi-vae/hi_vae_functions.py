@@ -82,17 +82,20 @@ def get_y_decode(graph, z_samples, input_dim):
             name='y_decode')
     return graph['y_shared_layer'](z_samples)
 
-def get_x_parameters(graph, y, s_dim, beta, gamma):
-    y = tf.reshape(y, [-1, tf.shape[y][-1]])
-    s_tail = tf.keras.backend.repeat(
-        tf.eye(s_dim),
-        tf.shape(y)[0]//s_dim)
+def get_x_parameters(graph, y, s_dim, beta, gamma, column_types):
+    assert(len(tf.shape(y)) == 4)
+    y = tf.reshape(y, [-1, tf.shape(y)[-1]])
+    s_tail = tf.reshape(
+        tf.keras.backend.repeat(
+            tf.eye(s_dim),
+            tf.shape(y)[0]//s_dim),
+        [-1, s_dim])
     x_params = []
     if not 'x_params_layers' in graph:
         graph['x_params_layers'] = [None] * len(column_types)
     x_params_layers = graph['x_params_layers']
     d = 0
-    for i, column in enumarate(column_types):
+    for i, column in enumerate(column_types):
         type_, dim = column['type'], column['dim']
         y_i_s = tf.concat(
             [y[:,i:i+1], s_tail],
@@ -107,9 +110,10 @@ def get_x_parameters(graph, y, s_dim, beta, gamma):
                     keras.layers.Dense(1), 
                     keras.layers.Dense(1)
                 )
-            x_params.append((
-                x_params_layers[i][0](y_i_s) * gamma[d] + beta[d],
-                x_params_layers[i][1](y_i_s) * gamma[d]
+            x_params.append(tf.concat(
+                [x_params_layers[i][0](y_i_s) * gamma[d] + beta[d],
+                x_params_layers[i][1](y_i_s) * gamma[d]],
+                axis = -1,
             ))
         else:
             if not x_params_layers[i]:
@@ -152,10 +156,11 @@ def get_elbo_loss(graph, z_samples, mu_z, log_sigma_z, x, miss_list, x_params, c
             assert(log_lambda_d.numpy().shape ==(s_dim * sample_length *batch, dim))
             log_poisson_loss = tf.nn.log_poisson_loss(
                 x_d,
-                log_lambda_x) * miss_list_d
+                log_lambda_d) * miss_list_d
+            loss_mat.append(log_poisson_loss)
             assert(log_lambda_d.numpy().shape ==(s_dim * sample_length *batch, dim))
         elif type_ == 'real' or type_ == 'pos':
-            mu_x_d, log_sigma_x_d = x_params[i][0], x_params[i][1]
+            mu_x_d, log_sigma_x_d = x_params[i][:,:1], x_params[i][:,1:]
             loss_mat.append(utils.get_gaussian_densities(
                 x_d,
                 mu_x_d,

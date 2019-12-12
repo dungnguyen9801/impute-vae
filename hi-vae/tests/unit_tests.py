@@ -197,3 +197,26 @@ def test_get_y_decode_2():
     assert(np.max(y_decode) <= 1.)
     assert(np.min(y_decode) >= -1.)
     
+def test_get_x_params():
+    column_types = [
+        {'type': 'real', 'dim':1},
+        {'type': 'count', 'dim':1},
+        {'type': 'cat', 'dim':2}]
+    graph = {}
+    layers = graph['x_params_layers'] = [None] * len(column_types)
+    layers[0] = (tf.keras.layers.Dense(1), tf.keras.layers.Dense(1))
+    layers[1] = tf.keras.layers.Dense(1)
+    layers[2] = tf.keras.layers.Dense(units=2, activation='softmax')
+    s_dim, sample_length, batch, z_dim = y_shape = (2,2,2,2)
+    x_dim = 4
+    y = np.random.normal(2,1,size=y_shape).astype(np.float32)
+    beta = np.random.normal(0, 1, x_dim).astype(np.float32)
+    gamma = np.random.normal(0, 1, x_dim).astype(np.float32) ** 2
+    x_params = hvf.get_x_parameters(graph, y, s_dim, beta, gamma, column_types)
+    assert(len(x_params) == 3)
+    assert(x_params[0].shape == (8,2))
+    assert(x_params[1].shape == (8,1))
+    assert(x_params[2].shape == (8,2))
+    assert(np.max(
+        tf.reduce_sum(x_params[2], axis=-1).numpy() 
+            - np.ones((8,1)) < 1e-3))
