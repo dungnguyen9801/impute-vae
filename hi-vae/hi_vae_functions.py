@@ -83,13 +83,13 @@ def get_y_decode(graph, z_samples, input_dim):
     return graph['y_shared_layer'](z_samples)
 
 def get_x_parameters(graph, y, s_dim, beta, gamma, column_types):
-    assert(len(tf.shape(y)) == 4)
-    y = tf.reshape(y, [-1, tf.shape(y)[-1]])
+    s_dim, sample_length, batch, x_dim = tf.shape(y)
+    assert(x_dim == len(column_types))
     s_tail = tf.reshape(
         tf.keras.backend.repeat(
             tf.eye(s_dim),
-            tf.shape(y)[0]//s_dim),
-        [-1, s_dim])
+            sample_length * batch),
+        [s_dim, sample_length, batch, s_dim])
     x_params = []
     if not 'x_params_layers' in graph:
         graph['x_params_layers'] = [None] * len(column_types)
@@ -98,7 +98,7 @@ def get_x_parameters(graph, y, s_dim, beta, gamma, column_types):
     for i, column in enumerate(column_types):
         type_, dim = column['type'], column['dim']
         y_i_s = tf.concat(
-            [y[:,i:i+1], s_tail],
+            [y[:,:,:,i:i+1], s_tail],
             axis=-1)
         if type_ == 'count':
             if not x_params_layers[i]:
@@ -122,87 +122,119 @@ def get_x_parameters(graph, y, s_dim, beta, gamma, column_types):
         d += dim
     return x_params
 
-def get_elbo_loss(graph, z_samples, mu_z, log_sigma_z, x, miss_list, x_params, column_types):
-    s_dim, sample_length, batch, z_dim = tf.shape(z_samples)
-    z_samples = tf.reshape(z_samples, [-1, z_dim])
-    assert(mu_z.numpy().shape == (batch, z_dim))
+def get_E_log_q_z_x(z_samples, mu_z, log_sigma_z):
+    s_dim, _, _, z_dim = tf.shape(z_samples)
     sigma_z = tf.exp(log_sigma_z)
+    loss_mat = tf.reduce_mean(
+        tf.reduce_mean(
+            utils.get_gaussian_densities(
+                z_samples,
+                mu_z,
+                sigma_z),
+            axis=2),
+        axis=1)
 
-    # calculate E_{q(z|x)}log(q(z|x))
-
-    log_q_z_x = utils.get_gaussian_densities(
-        z_samples,
-        mu_z,
-        sigma_z)/z_samples/batch
+    assert(loss_mat.numpy().shape == (s_dim, z_dim))
     
-    assert(log_q_z_x.numpy().shape == z_samples.shape())
-
     # per each s value
-    log_q_z_x = tf.reduce_sum(
-        tf.reshape(log_q_z_x, [s_dim, -1]),
+    E_log_q_z_x = tf.reduce_sum(
+        tf.reshape(loss_mat, [s_dim, -1]),
         axis=-1)
-    
-    # calculate E_{q(z|x)}log(p(x|z))
+
+    return E_log_q_z_x
+
+def get_E_log_p_x_z(z_shape, x_params, x, column_types, miss_list):
+    s_dim, sample_length, batch, _ = z_shape
     eps = 1e-5
     assert(len(x_params) == len(column_types))
+    assert(len(x) == batch)
     d = 0
-    loss_mat = []
-    for i, column in enumarate(column_types):
+    loss_mat_list = []
+    for i, column in enumerate(column_types):
         type_, dim = column['type'], column['dim']
         x_d = x[:,d:d+dim]
-        miss_list_d = miss_list[:,i:i+1]
+        miss_list_d = miss_list[:,d:d+dim]
         if type_ == 'count':
-            log_lambda_d = x_params[i]
-            assert(log_lambda_d.numpy().shape ==(s_dim * sample_length *batch, dim))
+            log_lambda_d = tf.reshape(x_params[i], (-1, batch, dim))
+            assert(log_lambda_d.numpy().shape ==(s_dim * sample_length, batch, dim))
             log_poisson_loss = tf.nn.log_poisson_loss(
-                x_d,
+                tf.broadcast_to(x_d, log_lambda_d.numpy().shape),
                 log_lambda_d) * miss_list_d
-            loss_mat.append(log_poisson_loss)
-            assert(log_lambda_d.numpy().shape ==(s_dim * sample_length *batch, dim))
+            loss_mat_list.append(log_poisson_loss)
         elif type_ == 'real' or type_ == 'pos':
-            mu_x_d, log_sigma_x_d = x_params[i][:,:1], x_params[i][:,1:]
-            loss_mat.append(utils.get_gaussian_densities(
+            mu_x_d, log_sigma_x_d = (
+                tf.reshape(x_params[i][:,:1], (-1, batch, dim)), 
+                tf.reshape(x_params[i][:,1:], (-1, batch, dim)))
+            loss_mat_list.append(utils.get_gaussian_densities(
                 x_d,
                 mu_x_d,
                 log_sigma_x_d) * miss_list_d
             )
         else:
-            x_probs_d = x_params[i]
+            x_probs_d = tf.reshape(x_params[i], (-1, batch, dim))
             assert(x_probs_d.numpy().shape == 
-                (s_dim * sample_length *batch, dim))
-            loss_mat.append(
-                tf.math.log(
-                    tf.reduce_mean(
-                        tf.clip_by_value(
-                            x_d * x_probs_d,
-                            clip_value_min=eps,
-                            clip_value_max=None))) * miss_list_d)
+                (s_dim * sample_length, batch, dim))
+            loss_mat_list.append(
+                tf.reshape(
+                    tf.math.log(
+                        tf.reduce_sum(
+                            tf.clip_by_value(
+                                x_d * x_probs_d,
+                                clip_value_min=eps,
+                                clip_value_max=1.), axis=-1))
+                        * tf.reduce_mean(miss_list_d, axis=-1),
+                    (-1, batch, 1)))
         d += dim
 
-    loss_mat = tf.concat(loss_mat, axis=-1)/sample_length/batch
-    log_p_x_z = tf.math.reduce_sum(
+    loss_mat = tf.concat(
+        [tf.reshape(x, (-1,1)) for x in loss_mat_list],
+        axis=-1)/sample_length/batch
+    E_log_p_x_z = tf.math.reduce_sum(
         tf.reshape(loss_mat, [s_dim,-1]),
         axis=-1)
 
-    # calculate E_{q(z|x)}log(p(z))
-    z_s = tf.keras.backend.repeat(z_samples, s_dim)
+    return E_log_p_x_z
+
+def get_E_log_pz(graph, z_samples):
+    s_dim, sample_length, batch, z_dim = tf.shape(z_samples)
+    z_samples_2D = tf.reshape(z_samples, [-1, z_dim])
+    z_s = tf.reshape(
+        tf.keras.backend.repeat(z_samples_2D, s_dim),
+        [-1, z_dim])
     if 's_component_means' not in graph:
         graph['s_component_means'] = tf.Variable(
             np.random.normal(0,1,size=(s_dim,z_dim)))
 
-    log_p_z = utils.get_gaussian_densities(
+    loss_mat = utils.get_gaussian_densities(
         z_s,
         graph['s_component_means'],
-        1)
+        1)/sample_length/batch
+    
+    E_log_pz = tf.math.reduce_sum(
+        tf.reshape(loss_mat, [s_dim,-1]),
+        axis=-1)
 
-    log_p_z = tf.reshape(log_p_z, [s_dim, -1])/sample_length/batch/s_dim
-    log_p_z = tf.math.reduce_sum(log_p_z, axis=-1)
-    return tf.math.reduce_sum(tf.matmul(s_probs, log_p_z))
+    return E_log_pz
+
+def get_elbo_loss(graph,s_probs, z_samples, mu_z, log_sigma_z, x,
+    miss_list, x_params, column_types):
+    # calculate E_{q(z|x)}log(q(z|x))
+    E_log_q_z_x = get_E_log_q_z_x(z_samples, mu_z, log_sigma_z)
+
+    # calculate E_{q(z|x)}log(p(x|z))
+    E_log_p_x_z = get_E_log_p_x_z(tf.shape(z_samples), 
+        x_params, x, column_types, miss_list)
+
+    # calculate E_{q(z|x)}log(p(z))
+    E_log_pz = get_E_log_pz(graph, z_samples)
+
+    return tf.math.reduce_sum(
+        tf.matmul(s_probs, E_log_q_z_x + E_log_p_x_z + E_log_pz))
 
 def get_hi_vae_encoder(graph, column_types, input_dim, hidden_dim, z_dim, s_dim, options=None):
     x = keras.layers.Input(shape=(input_dim,))
     miss_list = keras.layers.Input(shape=(input_dim,))
-    x_norm, _, x_avg, x_std = get_batch_normalization(x, miss_list, column_types)
+    x_norm, x_avg, x_std = get_batch_normalization(x, miss_list, column_types)
     x_hidden = get_x_hidden(graph, hidden_dim, x_norm)
     s_probs = get_s_probs(graph, x_hidden,s_dim)
     x_s = attach_s_vectors(x_hidden, s_dim) 
@@ -210,9 +242,13 @@ def get_hi_vae_encoder(graph, column_types, input_dim, hidden_dim, z_dim, s_dim,
     z_samples = get_z_samples(graph, mu_z, log_sigma_z)
 
     #decoder
+    trivial_miss_list = np.ones(tf.shape(x)).astype(np.float32)
     y_decode = get_y_decode(graph, z_samples, input_dim)
-    x_params = get_predict_parameters(graph, y_decode, s_dim, x_avg, x_std)
-
-    return keras.models.Model(
-        inputs=x_miss_list,
-        outputs=(s_probs, mu_z, log_sigma_z, x_avg, x_std))
+    x_params = get_x_parameters(graph, y_decode, s_dim, x_avg, x_std, column_types)
+    elbo_loss = get_elbo_loss(graph, s_probs, z_samples, mu_z, log_sigma_z,
+        x, trivial_miss_list, x_params, column_types)
+    model = keras.models.Model(
+        inputs=[x, miss_list],
+        outputs=[s_probs, mu_z, log_sigma_z, x_params, elbo_loss]
+    )
+    return model

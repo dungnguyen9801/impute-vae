@@ -72,3 +72,19 @@ def test_transform_miss_list():
         [1, 1, 1, 1, 1, 1, 0, 0]])
     x = utils.transform_data_miss_list(miss_list, column_types)
     assert np.min(x==y)
+
+def test_gaussian_densities():
+    zs = np.ones((10,1))
+    mu_z = np.random.normal(0,1,(5,1))
+    sigma_z = np.random.normal(5,1,(5,1))
+    log_densities = utils.get_gaussian_densities(zs,
+        mu_z, sigma_z)
+    assert(np.min(tf.shape(log_densities) == tf.shape(zs)))
+
+def test_gaussian_densities_2():
+    zs = np.ones((2,1))
+    mu_z = np.random.normal(0,1,(6,1))
+    sigma_z = np.random.normal(5,1,(6,1))
+    log_densities = utils.get_gaussian_densities(zs,
+        mu_z, sigma_z)
+    assert(np.min(tf.shape(log_densities) == tf.shape(mu_z)))
