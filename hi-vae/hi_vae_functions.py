@@ -134,7 +134,7 @@ def get_E_log_q_z_x(z_samples, mu_z, log_sigma_z):
             axis=2),
         axis=1)
 
-    assert(loss_mat.numpy().shape == (s_dim, z_dim))
+    assert(tuple(tf.shape(loss_mat)) == (s_dim, z_dim))
     
     # per each s value
     E_log_q_z_x = tf.reduce_sum(
@@ -143,11 +143,11 @@ def get_E_log_q_z_x(z_samples, mu_z, log_sigma_z):
 
     return E_log_q_z_x
 
-def get_E_log_p_x_z(z_shape, x_params, x, column_types, miss_list):
-    s_dim, sample_length, batch, _ = z_shape
-    eps = 1e-5
+def get_E_log_p_x_z(x_params, x, column_types, miss_list):
     assert(len(x_params) == len(column_types))
+    s_dim, sample_length, batch, _ = tf.shape(x_params[0])
     assert(len(x) == batch)
+    eps = 1e-5
     d = 0
     loss_mat_list = []
     for i, column in enumerate(column_types):
@@ -155,25 +155,28 @@ def get_E_log_p_x_z(z_shape, x_params, x, column_types, miss_list):
         x_d = x[:,d:d+dim]
         miss_list_d = miss_list[:,d:d+dim]
         if type_ == 'count':
-            log_lambda_d = tf.reshape(x_params[i], (-1, batch, dim))
-            assert(log_lambda_d.numpy().shape ==(s_dim * sample_length, batch, dim))
+            log_lambda_d = x_params[i]
+            assert(tuple(tf.shape(log_lambda_d)) ==
+                (s_dim, sample_length, batch, dim))
             log_poisson_loss = tf.nn.log_poisson_loss(
-                tf.broadcast_to(x_d, log_lambda_d.numpy().shape),
+                tf.broadcast_to(x_d, tf.shape(log_lambda_d)),
                 log_lambda_d) * miss_list_d
             loss_mat_list.append(log_poisson_loss)
         elif type_ == 'real' or type_ == 'pos':
+            assert(tuple(tf.shape(x_params[i]))
+                == s_dim, sample_length, batch, 2)
             mu_x_d, log_sigma_x_d = (
-                tf.reshape(x_params[i][:,:1], (-1, batch, dim)), 
-                tf.reshape(x_params[i][:,1:], (-1, batch, dim)))
+                x_params[i][:,:,:,:1],
+                x_params[i][:,:,:,1:])
             loss_mat_list.append(utils.get_gaussian_densities(
                 x_d,
                 mu_x_d,
                 log_sigma_x_d) * miss_list_d
             )
         else:
-            x_probs_d = tf.reshape(x_params[i], (-1, batch, dim))
-            assert(x_probs_d.numpy().shape == 
-                (s_dim * sample_length, batch, dim))
+            x_probs_d = x_params[i]
+            assert(tuple(tf.shape(x_probs_d)) == 
+                (s_dim, sample_length, batch, dim))
             loss_mat_list.append(
                 tf.reshape(
                     tf.math.log(
@@ -183,36 +186,37 @@ def get_E_log_p_x_z(z_shape, x_params, x, column_types, miss_list):
                                 clip_value_min=eps,
                                 clip_value_max=1.), axis=-1))
                         * tf.reduce_mean(miss_list_d, axis=-1),
-                    (-1, batch, 1)))
+                    (s_dim, sample_length, batch, 1)))
         d += dim
 
-    loss_mat = tf.concat(
-        [tf.reshape(x, (-1,1)) for x in loss_mat_list],
-        axis=-1)/sample_length/batch
-    E_log_p_x_z = tf.math.reduce_sum(
-        tf.reshape(loss_mat, [s_dim,-1]),
-        axis=-1)
+    loss_mat = tf.concat([mat for mat in loss_mat_list],axis=-1)
+    loss_mat = tf.reduce_mean(
+        loss_mat,
+        axis = [1,2])
+
+    E_log_p_x_z = tf.math.reduce_sum(loss_mat, axis=-1)
 
     return E_log_p_x_z
 
 def get_E_log_pz(graph, z_samples):
     s_dim, sample_length, batch, z_dim = tf.shape(z_samples)
-    z_samples_2D = tf.reshape(z_samples, [-1, z_dim])
-    z_s = tf.reshape(
-        tf.keras.backend.repeat(z_samples_2D, s_dim),
-        [-1, z_dim])
+    z_samples_2D = tf.reshape(z_samples, (-1, z_dim))
+    z_samples_2D_repeat_s_dim = tf.keras.backend.repeat(
+        z_samples_2D, s_dim)
     if 's_component_means' not in graph:
         graph['s_component_means'] = tf.Variable(
             np.random.normal(0,1,size=(s_dim,z_dim)))
 
-    loss_mat = utils.get_gaussian_densities(
-        z_s,
-        graph['s_component_means'],
-        1)/sample_length/batch
+    loss_mat = tf.reduce_mean(
+        tf.reshape(
+            utils.get_gaussian_densities(
+                z_samples_2D_repeat_s_dim,
+                graph['s_component_means'],
+                1),
+            (s_dim, sample_length, batch, s_dim, z_dim)),
+        axis=[1,2,3])
     
-    E_log_pz = tf.math.reduce_sum(
-        tf.reshape(loss_mat, [s_dim,-1]),
-        axis=-1)
+    E_log_pz = tf.math.reduce_sum(loss_mat, axis=-1)
 
     return E_log_pz
 
@@ -222,8 +226,7 @@ def get_elbo_loss(graph,s_probs, z_samples, mu_z, log_sigma_z, x,
     E_log_q_z_x = get_E_log_q_z_x(z_samples, mu_z, log_sigma_z)
 
     # calculate E_{q(z|x)}log(p(x|z))
-    E_log_p_x_z = get_E_log_p_x_z(tf.shape(z_samples), 
-        x_params, x, column_types, miss_list)
+    E_log_p_x_z = get_E_log_p_x_z(x_params, x, column_types, miss_list)
 
     # calculate E_{q(z|x)}log(p(z))
     E_log_pz = get_E_log_pz(graph, z_samples)
