@@ -100,14 +100,6 @@ def test_hidden():
     eps = 1e-5
     assert(np.max(np.abs(x_hidden_expected - x_hidden)) < eps)
 
-def get_s_probs(graph, x_hidden, s_dim):
-    if not 's_probs' in graph:
-        graph['s_probs_layer'] = keras.layers.Dense(
-            s_dim,
-            activation='softmax',
-            name='s_probs_layer')
-    return graph['s_probs_layer'](x_hidden)
-
 def test_s_probs():
     graph = {}
     s_dim = 2
@@ -163,8 +155,10 @@ def test_get_z_parameters():
 
 def test_get_z_samples():
     s_dim, batch, z_dim = 2,5,3
-    mu_z = np.random.normal(5,1, (s_dim, batch,z_dim))
-    log_sigma_z = np.random.normal(np.log(1),0.1, (s_dim, batch,z_dim))
+    mu_z = np.random.normal(5,1, (
+        s_dim, batch,z_dim)).astype(np.float32)
+    log_sigma_z = np.random.normal(np.log(1),0.1, (
+        s_dim, batch,z_dim)).astype(np.float32)
     L = 10000
     options = {'length' : L,'seed' : 1}
     z_samples = hvf.get_z_samples(mu_z, log_sigma_z, options)
@@ -248,8 +242,8 @@ def test_get_E_log_q_z_x():
     s_dim, sample_length, batch, z_dim = (5,4,3,2)
     z_samples = np.random.normal(2,1,(s_dim, sample_length, batch, z_dim))\
         .astype(np.float32)
-    mu_z = np.random.normal(2,0.1,(batch,z_dim)).astype(np.float32)
-    log_sigma_z = np.random.normal(3,0.5,(batch,z_dim)).astype(np.float32)
+    mu_z = np.random.normal(2,0.1,(s_dim, batch,z_dim)).astype(np.float32)
+    log_sigma_z = np.random.normal(3,0.5,(s_dim, batch,z_dim)).astype(np.float32)
     E_log_q_z_x = hvf.get_E_log_q_z_x(z_samples, mu_z, log_sigma_z)
     assert(E_log_q_z_x.numpy().shape == (s_dim,))
 

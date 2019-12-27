@@ -1,7 +1,7 @@
 import model_hi_vae as mhv
 import sys
 import time
-sys.path.append('../shared')
+sys.path.append('../')
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -9,7 +9,7 @@ from tensorflow import keras
 import matplotlib.pyplot as plt
 import copy
 import os
-import utils
+from utils import hi_vae_utils as utils
 from scipy.io import loadmat
 import csv
 
@@ -95,42 +95,39 @@ def hi_vae_wine_data_load(test_case):
     miss_list = utils.transform_data_miss_list(
         miss_mask.astype(np.int32),
         column_types)
-    return tf.concate(
-        [read_data(data, column_types), miss_list],
-        axis = -1).numpy(), column_types
+    return (read_data(data, column_types),
+        miss_list,
+        column_types)
 
 test_cases = \
 {
     'hi_vae1':
     {
-        'epochs': 2000000,
+        'iters': 2000000,
         'batch_size': 10,
         'input_shape': None,
         'model_dims': (256,2,256),
         'dataset_loader': hi_vae_random_data_load,
-        'model_class': mhv.model_hi_vae,
         'options':
         {
             'length': 1,
             'seed': 0
         },
-        'use_sgd':True,
         'report_frequency':100
     },
-    'hi_vae_wine':
+    'wine1':
     {
-        'epochs': 2000000,
-        'batch_size': 1,
-        'input_shape': None,
-        'model_dims': (256,2,256),
+        'iters': 2000000,
+        'batch_size': 2,
+        'hidden_x_dim':5,
+        'z_dim':3,
+        's_dim':2,
         'dataset_loader': hi_vae_wine_data_load,
-        'model_class': mhv.model_hi_vae,
         'options':
         {
             'length': 10,
             'seed': 1
         },
-        'use_sgd':True,
         'report_frequency':100,
         'data_type_file': '../../data/wine/data_types.csv',
         'miss_file': '../../data/wine/Missing10_10.csv',
