@@ -38,8 +38,6 @@ for iter_ in range(iters):
         x_batch,
         miss_batch,
         column_types)
-    # s_probs, mu_z, log_sigma_z, x_params, elbo_loss = model.endecoder(
-    #     [x_batch, x_norm, np.reshape(x_avg, (1,-1)), np.reshape(x_std, (1,-1))]
-    # )
-    model.endecoder(x_norm)
-    # print(elbo_loss)
+    mu_z, log_sigma_z, x_params, elbo_loss =\
+        model.endecoder([x_batch, x_norm,x_avg, x_std])
+    print('iter =%s, loss = %s' %(iter_, elbo_loss))
