@@ -13,16 +13,18 @@ def get_batch_normalization(x, miss_list, column_types):
     x_avg = []
     x_std = []
     for i in range(len(cont_ids)):
+        avg = 0.0
+        std = 1.0
         if cont_ids[i]:
             observed_indices = np.where(miss_list[:, i] == 1)
             observed = x[observed_indices, i]
-            avg = np.mean(observed)
-            std = np.clip(np.std(observed), eps, None)
-            x_avg.append(avg)
-            x_std.append(std)
-        else:
-            x_avg.append(0.0)
-            x_std.append(1.0)
+            if len(observed_indices[0]):
+                avg = np.mean(observed)
+                std = np.clip(np.std(observed), eps, None)
+                assert(not np.isnan(std))
+                assert(not np.isnan(avg))
+        x_avg.append(avg)
+        x_std.append(std)
     x_avg = np.array([x_avg])
     x_std = np.array([x_std])
     x_norm = (x - x_avg)/x_std * miss_list
@@ -237,31 +239,38 @@ def get_hi_vae_encoder(
     z_dim,
     s_dim,
     options=None):
-    x = keras.layers.Input(shape=(x_dim,))
+    # x = keras.layers.Input(shape=(x_dim,))
     x_norm = keras.layers.Input(shape=(x_dim,))
-    x_avg = keras.layers.Input(shape=(x_dim,))
-    x_std = keras.layers.Input(shape=(x_dim,))
-    beta = tf.reshape(x_avg, [-1])
-    gamma = tf.reshape(x_std, [-1])
-    x_hidden = get_x_hidden(graph, hidden_x_dim, x_norm)
-    s_probs = get_s_probs(graph, x_hidden,s_dim)
-    x_s = attach_s_vectors(x_hidden, s_dim) 
-    mu_z, log_sigma_z = get_z_parameters(graph, x_s, z_dim)
-    z_samples = get_z_samples(mu_z, log_sigma_z)
+    # x_avg = keras.layers.Input(shape=(x_dim,))
+    # x_std = keras.layers.Input(shape=(x_dim,))
+    # beta = tf.reshape(x_avg, [-1])
+    # gamma = tf.reshape(x_std, [-1])
+    # x_hidden = get_x_hidden(graph, hidden_x_dim, x_norm)
+    # s_probs = get_s_probs(graph, x_hidden,s_dim)
+    # x_s = attach_s_vectors(x_hidden, s_dim)
+    # mu_z, log_sigma_z = get_z_parameters(graph, x_s, z_dim)
+    # z_samples = get_z_samples(mu_z, log_sigma_z)
 
-    #decoder
-    trivial_miss_list = tf.ones(tf.shape(x))
-    y_decode = get_y_decode(graph, z_samples, len(column_types))
-    x_params = get_x_parameters(graph, y_decode, s_dim, beta, gamma, column_types)
-    if 's_component_means' not in graph:
-        graph['s_component_means'] = tf.Variable(
-            np.random.normal(0,1, size=(s_dim,z_dim)).astype(np.float32),
-            name='s_component_means',
-            trainable=True)
-    elbo_loss = get_elbo_loss(graph, s_probs, z_samples, mu_z, log_sigma_z,
-        x, trivial_miss_list, x_params, column_types)
+    # #decoder
+    # trivial_miss_list = tf.ones(tf.shape(x))
+    # y_decode = get_y_decode(graph, z_samples, len(column_types))
+    # x_params = get_x_parameters(graph, y_decode, s_dim, beta, gamma, column_types)
+    # if 's_component_means' not in graph:
+    #     graph['s_component_means'] = tf.Variable(
+    #         np.random.normal(0,1, size=(s_dim,z_dim)).astype(np.float32),
+    #         name='s_component_means',
+    #         trainable=True)
+    # elbo_loss = get_elbo_loss(graph, s_probs, z_samples, mu_z, log_sigma_z,
+    #     x, trivial_miss_list, x_params, column_types)
+    
+    mu_z_layer = keras.layers.Dense(
+        z_dim,
+        activation='sigmoid',
+        name='mu_z_test')
+    mu_z = mu_z_layer(x_norm)
+    test_loss = tf.math.reduce_sum(mu_z**2)
     model = keras.models.Model(
-        inputs=[x, x_norm, x_avg, x_std],
-        outputs=[mu_z, log_sigma_z, x_params, elbo_loss]
+        inputs=x_norm,
+        outputs=test_loss
     )
     return model

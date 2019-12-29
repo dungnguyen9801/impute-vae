@@ -29,15 +29,35 @@ model = mhv.model_hi_vae(
 )
 batch_size = test['batch_size']
 
+# x_norm = tf.keras.layers.Input(shape=(14,))
+# mu_z_layer = tf.keras.layers.Dense(
+#     test['z_dim'],
+#     activation='sigmoid',
+#     name='mu_z_test_main')
+# # mu_z = mu_z_layer(x_norm)
+# # test_loss = tf.math.reduce_sum(mu_z**2)
+# model = tf.keras.models.Model(
+#     inputs=x_norm,
+#     outputs=tf.reduce_sum(mu_z_layer(x_norm))
+# )
+
 optimizer = tf.keras.optimizers.Adamax()
-for iter_ in range(iters):
-    ids = np.random.choice(x.shape[0], size=batch_size, replace=False)
-    x_batch = x[ids]
-    miss_batch = miss_list[ids]
-    x_norm, x_avg, x_std = hvf.get_batch_normalization(
-        x_batch,
-        miss_batch,
-        column_types)
-    mu_z, log_sigma_z, x_params, elbo_loss =\
-        model.endecoder([x_batch, x_norm,x_avg, x_std])
-    print('iter =%s, loss = %s' %(iter_, elbo_loss))
+for iter_ in range(100000):
+    with tf.GradientTape() as tape:
+        ids = np.random.choice(x.shape[0], size=batch_size, replace=False)
+        x_batch = x[ids]
+        miss_batch = miss_list[ids]
+        x_norm, x_avg, x_std = hvf.get_batch_normalization(
+            x_batch,
+            miss_batch,
+            column_types)
+        # mu_z, log_sigma_z, x_params, elbo_loss, =\
+        #     model.endecoder([x_batch, x_norm,x_avg, x_std])
+        test_loss = model.endecoder(x_norm)
+        print('iter =%s, loss = %s' %(iter_, test_loss))
+        # if (np.isnan(test_loss.numpy())):
+        #     print('iter =%s, loss = %s,x_std =%s, norm=%s' %(iter_, test_loss,x_std,x_norm))
+        #     exit()
+        variables = model.endecoder.trainable_variables
+        gradients = tape.gradient(test_loss, variables)
+        optimizer.apply_gradients(zip(gradients, variables))
