@@ -118,7 +118,7 @@ test_cases = \
     'wine1':
     {
         'iters': 2000000,
-        'batch_size': 2,
+        'batch_size': 10,
         'hidden_x_dim':5,
         'z_dim':3,
         's_dim':2,
