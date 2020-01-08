@@ -72,12 +72,13 @@ def get_z_samples(mu_z, log_sigma_z, options=None):
         seed = options['seed']
     if seed:
         np.random.seed(seed)
+    print(sample_length)
     eps = tf.random.normal(shape=(
         sample_length,
         tf.shape(mu_z)[0],
         tf.shape(mu_z)[1],
-        tf.shape(mu_z)[2]))
-    return tf.transpose(eps*sigma_z + mu_z, [1,0,2,3])
+        tf.shape(mu_z)[2]), name='eps')
+    return tf.transpose(eps*sigma_z + mu_z, [1,0,2,3]), tf.reduce_sum(eps**2)
 
 def get_y_decode(graph, z_samples, num_var):
     if graph.get('y_shared_layer', None) == None:
@@ -131,13 +132,11 @@ def get_E_log_q_z_x(z_samples, mu_z, log_sigma_z):
     s_dim = tf.shape(z_samples)[0]
     sigma_z = tf.exp(log_sigma_z)
     loss_mat = tf.reduce_mean(
-        tf.reduce_mean(
-            utils.get_gaussian_densities(
-                tf.transpose(z_samples,[1,0,2,3]),
-                mu_z,
-                sigma_z),
-            axis=2),
-        axis=0)
+        utils.get_gaussian_densities(
+            tf.transpose(z_samples,[1,0,2,3]),
+            mu_z,
+            sigma_z),
+        axis=[0,2]),
 
     # per each s value
     E_log_q_z_x = tf.reduce_sum(
@@ -249,7 +248,7 @@ def get_hi_vae_encoder(
     s_probs = get_s_probs(graph, x_hidden,s_dim)
     x_s = attach_s_vectors(x_hidden, s_dim)
     mu_z, log_sigma_z = get_z_parameters(graph, x_s, z_dim)
-    z_samples = get_z_samples(mu_z, log_sigma_z)
+    z_samples, eps_sum = get_z_samples(mu_z, log_sigma_z,options)
 
     #decoder
     trivial_miss_list = tf.ones(tf.shape(x))
@@ -265,6 +264,6 @@ def get_hi_vae_encoder(
     
     model = keras.models.Model(
         inputs=[x, x_norm, x_avg, x_std],
-        outputs=[z_samples, mu_z, log_sigma_z, x_params, elbo_loss]
+        outputs=[z_samples, mu_z, log_sigma_z, x_params, elbo_loss, eps_sum]
     )
     return model

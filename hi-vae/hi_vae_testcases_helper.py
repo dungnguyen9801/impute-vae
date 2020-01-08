@@ -104,13 +104,13 @@ test_cases = \
     'hi_vae1':
     {
         'iters': 2000000,
-        'batch_size': 10,
+        'batch_size': 100,
         'input_shape': None,
         'model_dims': (256,2,256),
         'dataset_loader': hi_vae_random_data_load,
         'options':
         {
-            'length': 1,
+            'length': 100,
             'seed': 0
         },
         'report_frequency':100
@@ -118,14 +118,14 @@ test_cases = \
     'wine1':
     {
         'iters': 2000000,
-        'batch_size': 10,
+        'batch_size': 1,
         'hidden_x_dim':5,
         'z_dim':3,
         's_dim':2,
         'dataset_loader': hi_vae_wine_data_load,
         'options':
         {
-            'length': 10,
+            'length': 1,
             'seed': 1
         },
         'report_frequency':100,

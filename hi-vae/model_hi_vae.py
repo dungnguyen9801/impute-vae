@@ -9,20 +9,23 @@ class model_hi_vae():
         hidden_x_dim,
         z_dim,
         s_dim,
-        column_types):
+        column_types,
+        options):
         self.graph = {}
         self.column_types = column_types
         self.x_dim = x_dim
         self.hidden_x_dim = hidden_x_dim
         self.z_dim = z_dim
         self.s_dim = s_dim
+        self.options = options
         self.endecoder = hvf.get_hi_vae_encoder(
             self.graph,
             self.column_types,
             self.x_dim,
             self.hidden_x_dim,
             self.z_dim,
-            self.s_dim
+            self.s_dim,
+            self.options
         )
 
     def get_trainable_variables(self):
