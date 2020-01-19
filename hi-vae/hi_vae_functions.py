@@ -30,6 +30,13 @@ def get_batch_normalization(x, miss_list, column_types):
     x_norm = (x - x_avg)/x_std * miss_list
     return x_norm, x_avg, x_std
 
+def get_trivial_batch_normalization(x, miss_list, column_types):
+    cont_ids = utils.get_continuous_columns(column_types)
+    x_avg = np.zeros((1, len(cont_ids))).astype(np.float32)
+    x_std = np.ones((1, len(cont_ids))).astype(np.float32)
+    x_norm = (x - x_avg)/x_std * miss_list
+    return x_norm, x_avg, x_std
+
 def get_x_hidden(graph, hidden_dim, x_norm):
     if not 'x_hidden' in graph:
         graph['x_hidden'] = keras.layers.Dense(
@@ -62,23 +69,9 @@ def get_z_parameters(graph, x_s, z_dim):
             keras.layers.Dense(z_dim, activation='linear', name='log_sigma_z')
     return graph['mu_z'](x_s), graph['log_sigma_z'](x_s)
 
-def get_z_samples(mu_z, log_sigma_z, options=None):
+def get_z_samples(eps, mu_z, log_sigma_z):
     sigma_z = tf.math.exp(log_sigma_z)
-    if not options:
-        sample_length = 100
-        seed = 0
-    else:
-        sample_length = options['length']
-        seed = options['seed']
-    if seed:
-        np.random.seed(seed)
-    print(sample_length)
-    eps = tf.random.normal(shape=(
-        sample_length,
-        tf.shape(mu_z)[0],
-        tf.shape(mu_z)[1],
-        tf.shape(mu_z)[2]), name='eps')
-    return tf.transpose(eps*sigma_z + mu_z, [1,0,2,3]), tf.reduce_sum(eps**2)
+    return tf.transpose(eps*sigma_z + mu_z, [1,0,2,3])
 
 def get_y_decode(graph, z_samples, num_var):
     if graph.get('y_shared_layer', None) == None:
@@ -236,19 +229,19 @@ def get_hi_vae_encoder(
     x_dim, 
     hidden_x_dim,
     z_dim,
-    s_dim,
-    options=None):
+    s_dim):
     x = keras.layers.Input(shape=(x_dim,))
     x_norm = keras.layers.Input(shape=(x_dim,))
     x_avg = keras.layers.Input(shape=(x_dim,))
     x_std = keras.layers.Input(shape=(x_dim,))
+    eps = keras.layers.Input(shape=(s_dim, None, z_dim))
     beta = tf.reshape(x_avg, [-1])
     gamma = tf.reshape(x_std, [-1])
     x_hidden = get_x_hidden(graph, hidden_x_dim, x_norm)
     s_probs = get_s_probs(graph, x_hidden,s_dim)
     x_s = attach_s_vectors(x_hidden, s_dim)
     mu_z, log_sigma_z = get_z_parameters(graph, x_s, z_dim)
-    z_samples, eps_sum = get_z_samples(mu_z, log_sigma_z,options)
+    z_samples = get_z_samples(eps, mu_z, log_sigma_z)
 
     #decoder
     trivial_miss_list = tf.ones(tf.shape(x))
@@ -263,7 +256,7 @@ def get_hi_vae_encoder(
         x, trivial_miss_list, x_params, column_types)
     
     model = keras.models.Model(
-        inputs=[x, x_norm, x_avg, x_std],
-        outputs=[z_samples, mu_z, log_sigma_z, x_params, elbo_loss, eps_sum]
+        inputs=[x, x_norm, x_avg, x_std, eps],
+        outputs=[mu_z, log_sigma_z, z_samples, y_decode, x_params, elbo_loss]
     )
     return model

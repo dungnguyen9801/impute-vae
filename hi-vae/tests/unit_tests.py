@@ -5,6 +5,7 @@ sys.path.append('../')
 sys.path.append('../../')
 from utils import hi_vae_utils as utils
 import hi_vae_functions as hvf
+import model_hi_vae as mhv
 
 def test_batch_normalization_no_miss():
     column_types =[
@@ -161,7 +162,15 @@ def test_get_z_samples():
         s_dim, batch,z_dim)).astype(np.float32)
     L = 10000
     options = {'length' : L,'seed' : 1}
-    z_samples = hvf.get_z_samples(mu_z, log_sigma_z, options)
+    eps = np.random.normal(
+        0,
+        1, 
+        size=(
+            options['length'],
+            s_dim,
+            batch,
+            z_dim))
+    z_samples = hvf.get_z_samples(eps, mu_z, log_sigma_z)
     assert(z_samples.numpy().shape == (s_dim, L, batch, z_dim))
     z_samples_mean = tf.math.reduce_mean(z_samples, axis=1).numpy()
     z_samples_std = tf.math.reduce_std(z_samples, axis=1).numpy()
@@ -258,29 +267,60 @@ def test_get_E_log_pz():
                 .astype(np.float32))
     E_log_pz = hvf.get_E_log_pz(graph, z_samples)
     assert(E_log_pz.numpy().shape == (s_dim,))
-    
 
-# def get_E_log_pz(graph, z_samples):
-#     s_dim, sample_length, batch, z_dim = tf.shape(z_samples)
-#     z_samples_2D = tf.reshape(z_samples, [-1, z_dim])
-#     z_s = tf.reshape(
-#         tf.keras.backend.repeat(z_samples_2D, s_dim),
-#         [-1, z_dim])
-#     if 's_component_means' not in graph:
-#         graph['s_component_means'] = tf.Variable(
-#             np.random.normal(0,1,size=(s_dim,z_dim)))
+def test_additive_elbo_loss():
+    column_types =[
+        {'type': 'cat', 'dim':3},
+        {'type': 'real', 'dim':1},
+        {'type': 'count', 'dim':1},
+        {'type': 'pos', 'dim':1},
+        {'type': 'cat', 'dim':2}]
+    x0 = np.array([[0],[1],[2]])
+    x1 = np.array([[4],[5],[6]])
+    x2 = np.exp(np.array([[10],[11],[12]]))
+    x3 = np.exp(np.array([[1],[2],[3]]))
+    x4 = np.array([[1],[0],[1]])
+    x = np.concatenate([x0,x1,x2,x3,x4], axis=-1)
+    x = utils.transform_data_hi_vae(x, column_types).astype(np.float32)
+    batch = len(x0)
 
-#     loss_mat = utils.get_gaussian_densities(
-#         z_s,
-#         graph['s_component_means'],
-#         1)/sample_length/batch
-    
-#     E_log_pz = tf.math.reduce_sum(
-#         tf.reshape(loss_mat, [s_dim,-1]),
-#         axis=-1)
+    hidden_x_dim = 4
+    z_dim = 3
+    s_dim = 2
 
-#     return E_log_pz
+    miss_list = np.ones(tf.shape(x))
 
-# def test_get_E_log_pz():
+    model = mhv.model_hi_vae(
+        x.shape[-1],
+        hidden_x_dim,
+        z_dim,
+        s_dim,
+        column_types)
+
+    #init network weights
+    np.random.seed(1)
+    weights = []
+    for w in model.endecoder.get_weights():
+        weights.append(np.random.normal(0,1,size=w.shape))
+    model.endecoder.set_weights(weights)
+
+    sample_length = 1000
+    eps = np.random.normal(0,1, size=(
+        sample_length,
+        s_dim,
+        batch,
+        z_dim))
+    for ids in ([0], [2], [0,2]):
+        x_batch = x[ids]
+        miss_batch = miss_list[ids]
+        x_norm, x_avg, x_std = hvf.get_trivial_batch_normalization(
+            x_batch,
+            miss_batch,
+            column_types)
+        mu_z, log_sigma_z, z_samples, y_decode, x_params, elbo_loss = \
+            model.endecoder([x_batch, x_norm, x_avg, x_std, eps[:,:,ids,:]])
+        print('ids =%s, elbo_loss = %s' %(ids, elbo_loss.numpy()))
+
+    assert(False)
 
 

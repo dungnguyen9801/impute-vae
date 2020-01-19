@@ -32,20 +32,36 @@ model = mhv.model_hi_vae(
 )
 batch_size = test['batch_size']
 
+np.random.seed(1)
 optimizer = tf.keras.optimizers.Adamax()
+weights = []
+for w in model.endecoder.get_weights():
+    weights.append(np.random.normal(0,1,size=w.shape))
+model.endecoder.set_weights(weights)
 
-for id in ([1,2],[2], [1]):
-    ids = id
-    x_batch = x[ids]
-    miss_batch = miss_list[ids]
-    x_norm, x_avg, x_std = hvf.get_batch_normalization(
-        x_batch,
-        miss_batch,
-        column_types)
-    z_samples, mu_z, log_sigma_z, x_params, elbo_loss, eps_sum = \
-        model.endecoder([x_batch, x_norm, x_avg, x_std])
-    print('ids =%s, loss = %s' %(ids, elbo_loss))
-    variables = model.endecoder.trainable_variables
+losses = [[] for i in range(3)]
+for iter_ in range(1):
+    for i, id in enumerate(([1,2],[2], [1],[1,2], [2], [1])):
+        ids = id
+        x_batch = x[ids]
+        miss_batch = miss_list[ids]
+        x_norm, x_avg, x_std = hvf.get_trivial_batch_normalization(
+            x_batch,
+            miss_batch,
+            column_types)
+        tf.random.set_seed(10)
+        z_samples, mu_z, log_sigma_z, x_params, elbo_loss = \
+            model.endecoder([x_batch, x_norm, x_avg, x_std])
+        print('ids =%s, loss = %s' %(ids, elbo_loss.numpy()))
+        # print('mu_z', tf.reduce_sum(mu_z**2).numpy())
+        # print('log_sigma_z',tf.reduce_sum(log_sigma_z**2).numpy())
+        # print('z_samples',tf.reduce_mean(z_samples**2).numpy())
+        # print('eps_sum', eps_sum.numpy())
+        # names = [weight.name for layer in model.endecoder.layers for weight in layer.weights]
+        # weights = model.endecoder.get_weights()
+        # for name, weight in zip(names, weights):
+        #     if 'mu_z' in name or 'log_sigma_z' in name or 'x_hidden' in name:
+        #         print(name, tf.reduce_sum(weight**2).numpy(), weight.shape)
 
 # for iter_ in range(1, iters + 1):
 #     with tf.GradientTape() as tape:

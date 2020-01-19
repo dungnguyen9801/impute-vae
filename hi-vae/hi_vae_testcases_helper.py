@@ -125,7 +125,7 @@ test_cases = \
         'dataset_loader': hi_vae_wine_data_load,
         'options':
         {
-            'length': 1,
+            'length': 1000000,
             'seed': 1
         },
         'report_frequency':100,
