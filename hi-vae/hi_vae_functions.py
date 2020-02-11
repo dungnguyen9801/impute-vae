@@ -219,7 +219,7 @@ def get_elbo_loss(graph,s_probs, z_samples, mu_z, log_sigma_z, x,
     # calculate E_{q(z|x)}log(p(z))
     E_log_pz = get_E_log_pz(graph, z_samples)
 
-    return tf.math.reduce_sum(
+    return tf.math.reduce_mean(
         tf.matmul(s_probs, 
             tf.reshape(E_log_q_z_x - E_log_p_x_z - E_log_pz, (-1,1))))
 
@@ -257,6 +257,6 @@ def get_hi_vae_encoder(
     
     model = keras.models.Model(
         inputs=[x, x_norm, x_avg, x_std, eps],
-        outputs=[mu_z, log_sigma_z, z_samples, y_decode, x_params, elbo_loss]
+        outputs=[mu_z, log_sigma_z, s_probs, z_samples, y_decode, x_params, elbo_loss]
     )
     return model
