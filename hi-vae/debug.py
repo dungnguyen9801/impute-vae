@@ -49,15 +49,49 @@ model.endecoder.set_weights(weights)
 wine_nan_path = '../weights/nan/wine.nan'
 eps_nan_path = '../weights/nan/eps.nan'
 model.endecoder.load_weights(wine_nan_path)
-eps = np.reshape(np.loadtxt(eps_nan_path), (sample_length, s_dim, batch_size, z_dim))
-ids = [1]
-x_batch = x[ids]
-miss_batch = miss_list[ids]
-x_norm, x_avg, x_std = hvf.get_batch_normalization(
-    x_batch,
-    miss_batch,
-    column_types)
-mu_z, log_sigma_z, s_probs, z_samples, y_decode, x_params, elbo_loss = \
-    model.endecoder([x_batch, x_norm, x_avg, x_std, eps])
-print(elbo_loss.numpy())
-print(total_weights(model))
+eps_flat = np.loadtxt(eps_nan_path)
+thickness = s_dim * batch_size * z_dim
+
+
+def point_test(mid):
+    eps_flat_sub = eps_flat[mid*thickness:(mid+1)*thickness]
+    eps = np.reshape(eps_flat_sub, (-1, s_dim, batch_size, z_dim))
+    print(eps)
+    ids = [1]
+    x_batch = x[ids]
+    miss_batch = miss_list[ids]
+    x_norm, x_avg, x_std = hvf.get_batch_normalization(
+        x_batch,
+        miss_batch,
+        column_types)
+    mu_z, log_sigma_z, s_probs, z_samples, y_decode, x_params, elbo_loss = \
+        model.endecoder([x_batch, x_norm, x_avg, x_std, eps])
+    print(elbo_loss.numpy())
+    print(total_weights(model))
+
+point_test(491219)
+exit()
+
+lo, hi, bad = 0, len(eps_flat)//thickness, -1
+while lo <= hi:
+    mid = (lo + hi)//2
+    eps_flat_sub = eps_flat[lo*thickness:(mid+1)*thickness]
+    eps = np.reshape(eps_flat_sub, (-1, s_dim, batch_size, z_dim))
+    ids = [1]
+    x_batch = x[ids]
+    miss_batch = miss_list[ids]
+    x_norm, x_avg, x_std = hvf.get_batch_normalization(
+        x_batch,
+        miss_batch,
+        column_types)
+    mu_z, log_sigma_z, s_probs, z_samples, y_decode, x_params, elbo_loss = \
+        model.endecoder([x_batch, x_norm, x_avg, x_std, eps])
+    print(elbo_loss.numpy())
+    print(total_weights(model))
+    print(lo, mid, hi)
+    if (np.isnan(elbo_loss.numpy())):
+        ans = mid
+        hi = mid-1
+    else:
+        lo = mid+1
+print(ans)
